@@ -205,6 +205,7 @@ typedef struct {
     struct ATask* waiter;   // task that reads or accepts
     int    pending;         // server: connections to accept
     int    err;             // the stream is over: UV_EOF or an error
+    int    reading;         // between uv_read_start and uv_read_stop
     char*  buf;             // bytes read and not consumed: [off,len)
     size_t off, len, cap;
 } uva_stream;
@@ -253,8 +254,9 @@ static void uva_stream_unwait (AVal v, int reading) {
     uva_stream* s = a_nat_ptr(v);
     if (s!=NULL && s->waiter==a_cur) {
         s->waiter = NULL;
-        if (reading) {
+        if (reading && s->reading) {
             uv_read_stop(&s->u.stream);
+            s->reading = 0;
         }
     }
 }
@@ -284,6 +286,7 @@ static void uva_read_cb (uv_stream_t* h, ssize_t n, const uv_buf_t* buf) {
     } else if (n < 0) {
         s->err = n;
         uv_read_stop(h);
+        s->reading = 0;
     } else {
         return;
     }
@@ -292,10 +295,12 @@ static void uva_read_cb (uv_stream_t* h, ssize_t n, const uv_buf_t* buf) {
 
 static int uva_read_start (AStatus* st, AVal v) {
     uva_stream* s = uva_stream_of(st, v);
-    if (s==NULL || s->err!=0) {
+    if (s==NULL || s->err!=0 || s->reading) {
         return 0;
     }
-    return uv_read_start(&s->u.stream, uva_alloc_cb, uva_read_cb);
+    int err = uv_read_start(&s->u.stream, uva_alloc_cb, uva_read_cb);
+    s->reading = (err == 0);
+    return err;
 }
 
 // Takes bytes from the buffer of the stream:
