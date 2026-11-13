@@ -1,0 +1,7 @@
+line = 1 [1]
+line = 2 [1]
+line = 3 [1]
+line = 9998 [4]
+line = 9999 [4]
+line = 10000 [5]
+exit 0

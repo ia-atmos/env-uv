@@ -1,0 +1,16 @@
+;; ceu-libuv: samples/fs-07.ceu
+;; Reads a file line by line.
+;; Test: shows the first and the last lines, not the 10000.
+
+include "../uv.atm"
+
+val f = await uv.fs.open("fs-01.txt")
+val i = loop i {
+    val line = await uv.fs.line(f)
+    until line == nil, i
+    assert(line == tostring(i+1))
+    if (i < 3) || (i >= 9997) {
+        print("line = " ++ line ++ " [" ++ #line ++ "]")
+    }
+}
+assert(i == 10000)
