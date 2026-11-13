@@ -1,0 +1,6 @@
+I will terminate after 100ms...
+[client]: end of file
+[client]: end of file
+[test]	hello from 0	hello from 1
+DONE!
+exit 0

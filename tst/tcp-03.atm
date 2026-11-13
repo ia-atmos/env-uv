@@ -1,0 +1,42 @@
+;; ceu-libuv: samples/tcp-03.ceu
+;; Two parallel "echo" servers, each with its pool of clients.
+;; Test: port 0, 100ms (the original: 10s), and a client for each server.
+
+include "../uv.atm"
+
+task Client (client) {
+    loop {
+        val buf = await uv.stream.read(client)
+        until buf == nil
+        await uv.stream.write(client, buf)
+    }
+    print("[client]: end of file")
+}
+
+task Server (srv) {
+    pin cs = tasks(10)
+    loop {
+        val client = await uv.tcp.accept(srv)
+        spawn @cs Client(client)
+    }
+}
+
+val srv1 = uv.tcp.listen("127.0.0.1", 0)
+val srv2 = uv.tcp.listen("127.0.0.1", 0)
+spawn Server(srv1)
+spawn Server(srv2)
+
+val log = []
+task Test (id, srv) {
+    val ip, port = uv.tcp.addr(srv)
+    val c = await uv.tcp.connect(ip, port)
+    await uv.stream.write(c, "hello from " ++ id)
+    set log@id = await uv.stream.read(c)
+}
+spawn Test(0, srv1)
+spawn Test(1, srv2)
+
+print("I will terminate after 100ms...")
+await 100ms
+print("[test]", log@0, log@1)
+print("DONE!")
