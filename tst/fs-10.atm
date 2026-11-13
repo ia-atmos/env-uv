@@ -1,0 +1,46 @@
+;; ceu-libuv: samples/fs-10.ceu
+;; Copies a file line by line: the two files open in parallel.
+;; Test: the files are in build/, the source is written here, and the
+;; copy is compared in the program (the original compares in Lua).
+
+include "../uv.atm"
+
+val src = "../build/tst/fs-10-src.txt"
+val dst = "../build/tst/fs-10-dst.txt"
+do {
+    val f = await uv.fs.open(src, "w")
+    await uv.fs.write(f, "Hello World!\nfrom\nAtmos\n")
+}
+
+task All (path) {
+    val f = await uv.fs.open(path)
+    var all = ""
+    loop {
+        val buf = await uv.fs.read(f)
+        until buf == nil
+        set all = all ++ buf
+    }
+    all
+}
+
+do {
+    var w
+    var r
+    par :all {
+        set w = await uv.fs.open(dst, "w")
+    } with {
+        set r = await uv.fs.open(src)
+    }
+    loop {
+        val line = await uv.fs.line(r)
+        until line == nil
+        val n = await uv.fs.write(w, line ++ "\n")
+        assert(n == #line + 1)
+    }
+}
+
+val a = await All(src)
+val b = await All(dst)
+assert(a == b)
+print(#b)
+print("DONE")
