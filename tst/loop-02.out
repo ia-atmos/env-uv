@@ -1,0 +1,4 @@
+==> ERROR:
+ v  tst/loop-02.atm:6 (throw)
+==> X
+exit 1

@@ -1,0 +1,13 @@
+;; The program ends when nothing can awake it, and its blocks finalize.
+
+include "../uv.atm"
+
+defer {
+    print("end")
+}
+spawn {
+    await 100ms
+    print("100ms")
+}
+await(false)
+print("never")
