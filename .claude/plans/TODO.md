@@ -1,11 +1,11 @@
 # TODO
 
-Everything pending in this session (`fsantanna/uv`): explicit, unanswered,
+Everything pending in this session (`ia-atmos/env-uv`): explicit, unanswered,
 or unacknowledged. Kept current as the work goes.
 
 ## A. Decisions waiting for the author
 
-- Repository name: `uv` may be renamed to `env-uv` (undecided).
+- (none)
 
 ## B. Work known and not done
 
