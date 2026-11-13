@@ -1,0 +1,48 @@
+;; ceu-libuv: samples/tcp-02.ceu
+;; A parallel "echo" server: a task for each client, in a pool.
+;; Test: port 0, 100ms (the original: 10s), and three clients in the
+;; program, which are served at the same time. The order among the
+;; clients is not fixed: each one logs its echoes, shown at the end.
+
+include "../uv.atm"
+
+task Client (client) {
+    loop {
+        val buf = await uv.stream.read(client)
+        until buf == nil
+        await uv.stream.write(client, buf)
+    }
+    print("[client]: end of file")
+}
+
+val srv = uv.tcp.listen("127.0.0.1", 0)
+val ip, port = uv.tcp.addr(srv)
+
+val log = [[], [], []]
+task Test (id) {
+    val c = await uv.tcp.connect(ip, port)
+    loop i in 2 {
+        await uv.stream.write(c, "hello " ++ i ++ " from " ++ id)
+        set log@id@+ = await uv.stream.read(c)
+        await 10ms
+    }
+}
+pin ts = tasks()
+loop id in 3 {
+    spawn @ts Test(id)
+}
+
+print("I will terminate after 100ms...")
+
+pin cs = tasks(10)
+watching 100ms {
+    loop {
+        val client = await uv.tcp.accept(srv)
+        spawn @cs Client(client)
+    }
+}
+
+loop id,l in log {
+    print("[test " ++ id ++ "]", l@0, l@1)
+}
+print("DONE!")

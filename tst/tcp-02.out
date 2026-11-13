@@ -1,0 +1,9 @@
+I will terminate after 100ms...
+[client]: end of file
+[client]: end of file
+[client]: end of file
+[test 0]	hello 0 from 0	hello 1 from 0
+[test 1]	hello 0 from 1	hello 1 from 1
+[test 2]	hello 0 from 2	hello 1 from 2
+DONE!
+exit 0
