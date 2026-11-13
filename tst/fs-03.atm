@@ -1,0 +1,19 @@
+;; ceu-libuv: samples/fs-03.ceu and samples/fs-04.ceu
+;; Reads a file in pieces and shows it. The two samples differ in Céu in
+;; the level (the requests and their events against `UV_FS_Read_N`); here
+;; there is one way.
+;; Test: shows the sizes of the pieces, not the 10000 lines.
+
+include "../uv.atm"
+
+val f = await uv.fs.open("fs-01.txt")
+var n = 0
+var bytes = 0
+loop {
+    val buf = await uv.fs.read(f, 511)
+    until buf == nil
+    assert((#buf == 511) || (bytes + #buf == 48894))
+    set n = n + 1
+    set bytes = bytes + #buf
+}
+print(n, bytes)
