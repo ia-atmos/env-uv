@@ -157,11 +157,14 @@ typedef struct {
         uv_connect_t connect;
         uv_write_t   write;
         uv_shutdown_t shutdown;
+        uv_getaddrinfo_t getaddrinfo;
     } u;
     struct ATask* waiter;
     int     done;
     int     gone;
+    int     cancel;         // the request can be cancelled
     int64_t res;
+    AVal    val;            // a result that is a value
     char    data[];
 } uva_req;
 
@@ -171,8 +174,12 @@ static void uva_req_fin (void* p) {
     uva_req* r = p;
     r->waiter = NULL;
     r->gone   = 1;
+    a_dec(r->val);
+    r->val = a_nil();
     if (r->done) {
         free(r);
+    } else if (r->cancel) {
+        uv_cancel(&r->u.req);
     }
 }
 
@@ -189,6 +196,7 @@ static void uva_req_done (uva_req* r, int64_t res) {
 static AVal uva_req_new (uva_req** r, size_t extra) {
     *r = calloc(1, sizeof(uva_req) + extra);
     (*r)->waiter = a_cur;
+    (*r)->val    = a_nil();
     return a_nat(*r, uva_req_fin, UVA_KIND_REQ);
 }
 
@@ -534,6 +542,69 @@ static AVal uva_tcp_accept (AStatus* st, AVal v) {
     return ret;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// NAMES
+///////////////////////////////////////////////////////////////////////////////
+
+// The addresses of a name, as a vector of strings with no repetition.
+static void uva_getaddrinfo_cb (uv_getaddrinfo_t* g, int status, struct addrinfo* res) {
+    uva_req* r = (uva_req*) g;
+    if (status==0 && !r->gone) {
+        r->val = a_tab();
+        int n = 0;
+        for (struct addrinfo* p=res; p!=NULL; p=p->ai_next) {
+            char ip[64] = "";
+            if (p->ai_family == AF_INET) {
+                uv_ip4_name((struct sockaddr_in*)p->ai_addr, ip, sizeof(ip));
+            } else if (p->ai_family == AF_INET6) {
+                uv_ip6_name((struct sockaddr_in6*)p->ai_addr, ip, sizeof(ip));
+            } else {
+                continue;
+            }
+            AVal x = a_strz(ip);
+            int dup = 0;
+            for (int i=0; i<n; i++) {
+                dup = dup || a_eq(a_tab_get(A_TAB_OF(r->val),a_int(i)), x);
+            }
+            if (!dup) {
+                a_setindex(r->val, a_int(n++), x);
+            }
+            a_dec(x);
+        }
+    }
+    uv_freeaddrinfo(res);
+    uva_req_done(r, status);
+}
+
+static AVal uva_getaddrinfo (AStatus* st, AVal name) {
+    if (name.type != A_STR) {
+        *st = a_error("invalid name : expected string");
+        return a_nil();
+    }
+    uva_req* r;
+    AVal ret = uva_req_new(&r, 0);
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_socktype = SOCK_STREAM;
+    int err = uv_getaddrinfo(UVA_LOOP, &r->u.getaddrinfo, uva_getaddrinfo_cb,
+        A_STR_OF(name)->s, NULL, &hints);
+    if (err < 0) {
+        r->res  = err;
+        r->done = 1;
+    } else {
+        r->cancel = 1;
+    }
+    return ret;
+}
+
+// The string is an address of IPv4 or IPv6.
+static int uva_is_ip (AVal ip) {
+    struct sockaddr_storage addr;
+    return ip.type==A_STR && (
+        uv_ip4_addr(A_STR_OF(ip)->s, 0, (struct sockaddr_in*)&addr)==0 ||
+        uv_ip6_addr(A_STR_OF(ip)->s, 0, (struct sockaddr_in6*)&addr)==0);
+}
+
 #ifndef UVA_NO_MAIN
 int main (int argc, char** argv) {
     uva_init(argc, argv);
@@ -614,11 +685,36 @@ task uv_tcp_accept (srv) {
     }
 }
 
-task uv_tcp_connect (ip, port) {
+task uv_dns_lookup (name) {
+    pin r = `:value uva_getaddrinfo(&st, $name)`
+    await uv_req(r)
+    `:value (a_inc(((uva_req*)a_nat_ptr($r))->val), ((uva_req*)a_nat_ptr($r))->val)`
+}
+
+task uv_tcp_connect_ip (ip, port) {
     val s = `:value uva_tcp_new()`
     pin r = `:value uva_tcp_connect(&st, $s, $ip, $port)`
     await uv_req(r)
     s
+}
+
+;; A name is resolved, and its addresses are tried in order.
+task uv_tcp_connect (host, port) {
+    if (type(host) != :string) || `:boolean uva_is_ip($host)` {
+        return await uv_tcp_connect_ip(host, port)
+    }
+    val ips = await uv_dns_lookup(host)
+    var err = nil
+    loop _,ip in ips {
+        val ok, s = catch :uv.error {
+            await uv_tcp_connect_ip(ip, port)
+        }
+        if ok {
+            return s
+        }
+        set err = s
+    }
+    throw (err || `:value uva_error(UV_EAI_NONAME)`)
 }
 
 ;; An error of libuv in a client only terminates that client.
@@ -665,6 +761,11 @@ val uv = [
         shutdown = uv_stream_shutdown,
     ],
 
+    dns = [
+        ;; await uv.dns.lookup(name): the addresses of a name, as strings
+        lookup = uv_dns_lookup,
+    ],
+
     tcp = [
         ;; uv.tcp.listen(ip, port, [backlog]): a server
         listen = uv_tcp_listen,
@@ -676,7 +777,8 @@ val uv = [
         ;; connection `s` to the server, in a pool. Never terminates.
         serve = uv_tcp_serve,
 
-        ;; await uv.tcp.connect(ip, port): a connection to a server
+        ;; await uv.tcp.connect(host, port): a connection to a server,
+        ;; given by an address or by a name
         connect = uv_tcp_connect,
 
         ;; uv.tcp.addr(s): the ip and the port of the stream
