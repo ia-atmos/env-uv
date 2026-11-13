@@ -1,0 +1,47 @@
+;; ceu-libuv: samples/tcp-09.ceu
+;; The echo of a big file, in the pieces that arrive: one client, then
+;; the server terminates.
+;; Test: port 0, and the client in the program (the original:
+;; `cat samples/fs-01.txt | nc localhost 7000`), which sends the numbers
+;; from 1 to 10000, one per line, and checks what comes back.
+
+include "../uv.atm"
+
+task Client (client) {
+    loop {
+        val buf = await uv.stream.read(client)
+        until buf == nil
+        await uv.stream.write(client, buf)
+    }
+}
+
+val srv = uv.tcp.listen("127.0.0.1", 0)
+val ip, port = uv.tcp.addr(srv)
+
+pin tst = spawn {
+    var file = ""
+    loop i in (1, 10000) {
+        set file = file ++ i ++ "\n"
+    }
+    val c = await uv.tcp.connect(ip, port)
+    par :all {
+        await uv.stream.write(c, file)
+        await uv.stream.shutdown(c)
+    } with {
+        var all = ""
+        loop {
+            val buf = await uv.stream.read(c)
+            until buf == nil
+            set all = all ++ buf
+        }
+        print("[test]", #all, all == file)
+    }
+}
+
+do {
+    val client = await uv.tcp.accept(srv)
+    await Client(client)
+}                       ;; the connection closes here
+await(tst)
+
+print("DONE!")
