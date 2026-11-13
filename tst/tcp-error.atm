@@ -15,7 +15,7 @@ print(ok1, e1.tag, e1.name, e1.msg)
 
 ;; an invalid address
 val ok2, e2 = catch :uv.error.EINVAL {
-    await uv.tcp.connect("not an ip", 80)
+    uv.tcp.listen("not an ip", 80)
 }
 print(ok2, e2.name)
 
