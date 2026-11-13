@@ -1,0 +1,29 @@
+;; ceu-libuv: samples/tcp-07.ceu
+;; An "echo" client and server: `uv.tcp.serve` with a handler.
+;; Test: port 0, 3 messages at each 10ms (the original: 10, at each 1s).
+
+include "../uv.atm"
+
+task Handler (s) {
+    loop {
+        val buf = await uv.stream.read(s)
+        until buf == nil
+        print("[server] " ++ buf)
+        await uv.stream.write(s, buf)
+    }
+}
+
+val srv = uv.tcp.listen("127.0.0.1", 0)
+val ip, port = uv.tcp.addr(srv)
+spawn uv.tcp.serve(srv, Handler)
+
+val c = await uv.tcp.connect(ip, port)
+
+loop i in 3 {
+    await 10ms
+    await uv.stream.write(c, "Alo mundo!")
+    val str = await uv.stream.read(c)
+    print("[client] " ++ str)
+}
+
+print("DONE!")
