@@ -1,0 +1,13 @@
+accept aborted
+connect aborted
+read	nil
+client aborted
+line	nil
+read	abc
+bytes	10485760
+write aborted
+pool	0	nil
+pool	1	nil
+pool	2	nil
+done
+exit 0

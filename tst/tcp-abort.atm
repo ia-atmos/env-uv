@@ -1,0 +1,95 @@
+;; Aborting a task in the middle of an operation closes its handles and
+;; leaves nothing behind (the address sanitizer checks the memory).
+
+include "../uv.atm"
+
+val srv = uv.tcp.listen("127.0.0.1", 0)
+val ip, port = uv.tcp.addr(srv)
+
+;; accept: aborted with no connection
+watching 50ms {
+    await uv.tcp.accept(srv)
+    print("never")
+}
+print("accept aborted")
+
+;; connect: aborted at once, before the connection is made
+do {
+    pin t = spawn {
+        val c = await uv.tcp.connect(ip, port)
+        print("never")
+    }
+    abort t
+}
+print("connect aborted")
+
+;; the server still gets that connection, which is already closed
+do {
+    val s = await uv.tcp.accept(srv)
+    print("read", (await uv.stream.read(s)))
+}
+
+;; read: the client is aborted while it reads, the server sees the end
+do {
+    pin t = spawn {
+        val c = await uv.tcp.connect(ip, port)
+        defer {
+            print("client aborted")
+        }
+        await uv.stream.read(c)
+        print("never")
+    }
+    val s = await uv.tcp.accept(srv)
+    await 50ms
+    abort t
+    print("line", (await uv.stream.line(s)))
+}
+
+;; a stream is free again after its reader is aborted
+do {
+    val c = await uv.tcp.connect(ip, port)
+    val s = await uv.tcp.accept(srv)
+    watching 50ms {
+        await uv.stream.read(s)
+        print("never")
+    }
+    await uv.stream.write(c, "abc")
+    print("read", (await uv.stream.read(s, 3)))
+}
+
+;; write: aborted before it completes, with much data
+do {
+    val c = await uv.tcp.connect(ip, port)
+    val s = await uv.tcp.accept(srv)
+    var big = "0123456789"
+    loop in 20 {
+        set big = big ++ big
+    }
+    print("bytes", #big)
+    pin t = spawn {
+        await uv.stream.write(c, big)
+        print("never")
+    }
+    abort t
+    print("write aborted")
+}
+
+;; a pool of clients, aborted as a whole
+do {
+    pin cs = tasks()
+    loop in 3 {
+        spawn @cs (task () {
+            val c = await uv.tcp.connect(ip, port)
+            await uv.stream.read(c)
+        }) ()
+    }
+    val ss = []
+    loop in 3 {
+        set ss@+ = await uv.tcp.accept(srv)
+    }
+    abort cs
+    loop i in 3 {
+        print("pool", i, (await uv.stream.read(ss@i)))
+    }
+}
+print("done")
