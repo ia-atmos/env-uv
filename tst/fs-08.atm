@@ -1,0 +1,20 @@
+;; ceu-libuv: samples/fs-08.ceu
+;; Reads a file in pieces of 10 bytes.
+;; Test: joins the pieces and checks the whole, not shown.
+
+include "../uv.atm"
+
+val f = await uv.fs.open("fs-01.txt")
+var all = ""
+var n = 0
+loop {
+    val buf = await uv.fs.read(f, 10)
+    until buf == nil
+    set all = all ++ buf
+    set n = n + 1
+}
+var file = ""
+loop i in (1, 10000) {
+    set file = file ++ i ++ "\n"
+}
+print(n, #all, all == file)
