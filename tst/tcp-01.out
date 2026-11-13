@@ -1,0 +1,9 @@
+I will terminate after two connections...
+>>> 0
+[client 1] hello from 1
+[read]: end of file
+>>> 1
+[client 2] hello from 2
+[read]: end of file
+DONE!
+exit 0
