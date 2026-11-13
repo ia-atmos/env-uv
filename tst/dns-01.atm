@@ -1,0 +1,32 @@
+;; Names: the addresses of a name, and a connection by name.
+
+include "../uv.atm"
+
+val ips = await uv.dns.lookup("localhost")
+print(type(ips), #ips > 0, X.xin("127.0.0.1", ips) || X.xin("::1", ips))
+
+;; a name that does not exist
+val ok, e = catch :uv.error {
+    await uv.dns.lookup("no.such.name.invalid")
+}
+print(ok, e ?? :uv.error)
+
+;; a lookup that is aborted
+watching 0ms {
+    await uv.dns.lookup("localhost")
+    print("never")
+}
+print("aborted")
+
+;; a connection by name
+task Echo (s) {
+    val line = await uv.stream.line(s)
+    await uv.stream.write(s, line ++ "\n")
+}
+val srv = uv.tcp.listen("127.0.0.1", 0)
+val _, port = uv.tcp.addr(srv)
+spawn uv.tcp.serve(srv, Echo)
+
+val c = await uv.tcp.connect("localhost", port)
+await uv.stream.write(c, "by name\n")
+print((await uv.stream.line(c)))
