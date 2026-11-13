@@ -15,7 +15,6 @@ The working plan is `.claude/plans/261113-env-uv.md`.
 
 ## B. Work known and not done
 
-- U3: names (`getaddrinfo`).
 - U4: files, and the twelve file samples of `ceu-libuv`.
 - U5: `doc/api.md`, `doc/guide.md`, the comparison with Céu.
 - U6: to decide with the author: UDP, processes, an application, a GUI.
