@@ -1,0 +1,11 @@
+;; ceu-libuv: samples/timer-01.ceu (100ms instead of 1s)
+
+include "../uv.atm"
+
+val t0 = uv.now()
+loop i in 5 {
+    await 100ms
+    print((i+1) ++ " elapsed...")
+}
+val dt = uv.now() - t0
+print((dt >= 500) && (dt < 600))
