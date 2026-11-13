@@ -156,6 +156,7 @@ typedef struct {
         uv_req_t     req;
         uv_connect_t connect;
         uv_write_t   write;
+        uv_shutdown_t shutdown;
     } u;
     struct ATask* waiter;
     int     done;
@@ -375,6 +376,27 @@ static AVal uva_write (AStatus* st, AVal v, AVal str) {
     return ret;
 }
 
+// SHUTDOWN
+
+static void uva_shutdown_cb (uv_shutdown_t* r, int status) {
+    uva_req_done((uva_req*)r, status);
+}
+
+static AVal uva_shutdown (AStatus* st, AVal v) {
+    uva_stream* s = uva_stream_of(st, v);
+    if (s == NULL) {
+        return a_nil();
+    }
+    uva_req* r;
+    AVal ret = uva_req_new(&r, 0);
+    int err = uv_shutdown(&r->u.shutdown, &s->u.stream, uva_shutdown_cb);
+    if (err < 0) {
+        r->res  = err;
+        r->done = 1;
+    }
+    return ret;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // TCP
 ///////////////////////////////////////////////////////////////////////////////
@@ -562,6 +584,11 @@ task uv_stream_write (s, str) {
     await uv_req(r)
 }
 
+task uv_stream_shutdown (s) {
+    pin r = `:value uva_shutdown(&st, $s)`
+    await uv_req(r)
+}
+
 func uv_tcp_listen (ip, port, backlog) {
     val s = `:value uva_tcp_new()`
     uv_chk(`:number uva_tcp_listen(&st, $s, $ip, $port, $backlog)`)
@@ -589,6 +616,21 @@ task uv_tcp_connect (ip, port) {
     s
 }
 
+;; An error of libuv in a client only terminates that client.
+task uv_tcp_client (handler, s, ...) {
+    catch :uv.error {
+        await handler(s, ...)
+    }
+}
+
+task uv_tcp_serve (srv, handler, ...) {
+    pin cs = tasks()
+    loop {
+        val s = await uv_tcp_accept(srv)
+        spawn @cs uv_tcp_client(handler, s, ...)
+    }
+}
+
 val uv = [
     ;; uv.now(): the time of the loop, in milliseconds
     now = func () {
@@ -612,6 +654,10 @@ val uv = [
 
         ;; await uv.stream.write(s, str): writes all bytes of the string
         write = uv_stream_write,
+
+        ;; await uv.stream.shutdown(s): ends the writes, after the pending
+        ;; ones: the other side reads the end of the stream
+        shutdown = uv_stream_shutdown,
     ],
 
     tcp = [
@@ -620,6 +666,10 @@ val uv = [
 
         ;; await uv.tcp.accept(srv): the next connection to the server
         accept = uv_tcp_accept,
+
+        ;; await uv.tcp.serve(srv, T, ...): spawns `T(s, ...)` for each
+        ;; connection `s` to the server, in a pool. Never terminates.
+        serve = uv_tcp_serve,
 
         ;; await uv.tcp.connect(ip, port): a connection to a server
         connect = uv_tcp_connect,
