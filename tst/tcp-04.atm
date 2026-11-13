@@ -1,0 +1,74 @@
+;; ceu-libuv: samples/tcp-04.ceu
+;; Two parallel "echo" servers: the first echoes whatever arrives, the
+;; second echoes line by line. The client task finds its handler from
+;; the port of its connection.
+;; Test: port 0, 100ms (the original: 10s), and a client for each server,
+;; which sends two lines in three pieces.
+
+include "../uv.atm"
+
+val srv0 = uv.tcp.listen("127.0.0.1", 0)
+val srv1 = uv.tcp.listen("127.0.0.1", 0)
+val _, PORT0 = uv.tcp.addr(srv0)
+val _, PORT1 = uv.tcp.addr(srv1)
+
+task Handler0 (client) {
+    loop {
+        val buf = await uv.stream.read(client)
+        until buf == nil
+        print("[handler-0] " ++ #buf)
+        await uv.stream.write(client, buf)
+    }
+}
+
+task Handler1 (client) {
+    loop {
+        val line = await uv.stream.line(client)
+        until line == nil
+        print("[handler-1] " ++ line)
+        await uv.stream.write(client, line ++ "\n")
+    }
+}
+
+task Client (client) {
+    val _, port = uv.tcp.addr(client)
+    if port == PORT0 {
+        await Handler0(client)
+    } else {
+        await Handler1(client)
+    }
+    print("[client]: end of file")
+}
+
+task Server (srv) {
+    pin cs = tasks(10)
+    loop {
+        val client = await uv.tcp.accept(srv)
+        spawn @cs Client(client)
+    }
+}
+
+spawn Server(srv0)
+spawn Server(srv1)
+
+task Test (port) {
+    val c = await uv.tcp.connect("127.0.0.1", port)
+    loop _,s in ["one", " line\ntw", "o lines\n"] {
+        await uv.stream.write(c, s)
+        await 10ms
+    }
+    await uv.stream.shutdown(c)
+    var all = ""
+    loop {
+        val buf = await uv.stream.read(c)
+        until buf == nil
+        set all = all ++ buf
+    }
+    print("[test]", all == "one line\ntwo lines\n")
+}
+await Test(PORT0)
+await Test(PORT1)
+
+print("I will terminate after 100ms...")
+await 100ms
+print("DONE!")

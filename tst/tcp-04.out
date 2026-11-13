@@ -1,0 +1,12 @@
+[handler-0] 3
+[handler-0] 8
+[handler-0] 8
+[client]: end of file
+[test]	true
+[handler-1] one line
+[handler-1] two lines
+[client]: end of file
+[test]	true
+I will terminate after 100ms...
+DONE!
+exit 0
