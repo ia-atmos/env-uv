@@ -1,0 +1,6 @@
+(should generate uncaught exception)
+==> ERROR:
+ |  tst/../uv.atm:? (call)
+ v  tst/../uv.atm:? (throw)
+==> table: 0x?, ENOENT : no such file or directory
+exit 1
