@@ -1,0 +1,42 @@
+;; Errors are throws with the name that libuv gives.
+
+include "../uv.atm"
+
+;; a port with no server
+val port = do {
+    val srv = uv.tcp.listen("127.0.0.1", 0)
+    val _, p = uv.tcp.addr(srv)
+    p
+}
+val ok1, e1 = catch :uv.error {
+    await uv.tcp.connect("127.0.0.1", port)
+}
+print(ok1, e1.tag, e1.name, e1.msg)
+
+;; an invalid address
+val ok2, e2 = catch :uv.error.EINVAL {
+    await uv.tcp.connect("not an ip", 80)
+}
+print(ok2, e2.name)
+
+;; a port in use
+val srv = uv.tcp.listen("127.0.0.1", 0)
+val _, p = uv.tcp.addr(srv)
+val ok3, e3 = catch :uv.error {
+    uv.tcp.listen("127.0.0.1", p)
+}
+print(ok3, e3.name)
+
+;; a closed handle, and what is not a handle
+uv.close(srv)
+print(catch true { uv.tcp.addr(srv) })
+print(catch true { await uv.stream.read(10) })
+
+;; two tasks read the same stream
+val srv2 = uv.tcp.listen("127.0.0.1", 0)
+val _, p2 = uv.tcp.addr(srv2)
+val c = await uv.tcp.connect("127.0.0.1", p2)
+spawn {
+    await uv.stream.read(c)
+}
+print(catch true { await uv.stream.read(c) })
