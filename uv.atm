@@ -94,6 +94,410 @@ int uva_quit (void) {
     return (st == A_OK) ? 0 : 1;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// ERRORS
+///////////////////////////////////////////////////////////////////////////////
+
+// An error of libuv as a value: :uv.error.<NAME> [name=, msg=]
+static AVal uva_error (int r) {
+    char tag[64];
+    snprintf(tag, sizeof(tag), "uv.error.%s", uv_err_name(r));
+    AVal e  = a_tab();
+    AVal t  = a_strz(tag);
+    AVal k1 = a_strz("name");
+    AVal v1 = a_strz(uv_err_name(r));
+    AVal k2 = a_strz("msg");
+    AVal v2 = a_strz(uv_strerror(r));
+    a_tag(e, t);
+    a_setindex(e, k1, v1);
+    a_setindex(e, k2, v2);
+    a_dec(t); a_dec(k1); a_dec(v1); a_dec(k2); a_dec(v2);
+    return e;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// WAITING
+///////////////////////////////////////////////////////////////////////////////
+
+// A task that waits for a callback registers itself (`a_cur`) in the handle
+// or request, and awaits the event `:uv`, which the callback emits to that
+// task only. The task removes itself when it terminates or aborts.
+
+static void uva_wake (struct ATask** w) {
+    if (*w==NULL || UVA_QUIT) {
+        return;
+    }
+    uva_time();
+    if (*w==NULL || UVA_ST!=A_OK) {
+        return;
+    }
+    AVal tag = a_strz("uv");
+    UVA_ST = a_emit(a_obj(&(*w)->node.hdr), tag);
+    a_dec(tag);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// REQUESTS
+///////////////////////////////////////////////////////////////////////////////
+
+// A request lives until its callback runs (`done`) and its native value is
+// released (`gone`), in any order.
+typedef struct {
+    union {
+        uv_req_t     req;
+        uv_connect_t connect;
+        uv_write_t   write;
+    } u;
+    struct ATask* waiter;
+    int     done;
+    int     gone;
+    int64_t res;
+    char    data[];
+} uva_req;
+
+static const char* UVA_KIND_REQ = "uv.req";
+
+static void uva_req_fin (void* p) {
+    uva_req* r = p;
+    r->waiter = NULL;
+    r->gone   = 1;
+    if (r->done) {
+        free(r);
+    }
+}
+
+static void uva_req_done (uva_req* r, int64_t res) {
+    r->res  = res;
+    r->done = 1;
+    if (r->gone) {
+        free(r);
+    } else {
+        uva_wake(&r->waiter);
+    }
+}
+
+static AVal uva_req_new (uva_req** r, size_t extra) {
+    *r = calloc(1, sizeof(uva_req) + extra);
+    (*r)->waiter = a_cur;
+    return a_nat(*r, uva_req_fin, UVA_KIND_REQ);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// STREAMS
+///////////////////////////////////////////////////////////////////////////////
+
+typedef struct {
+    union {
+        uv_handle_t handle;
+        uv_stream_t stream;
+        uv_tcp_t    tcp;
+    } u;
+    struct ATask* waiter;   // task that reads or accepts
+    int    pending;         // server: connections to accept
+    int    err;             // the stream is over: UV_EOF or an error
+    char*  buf;             // bytes read and not consumed: [off,len)
+    size_t off, len, cap;
+} uva_stream;
+
+static const char* UVA_KIND_STREAM = "uv.stream";
+
+static void uva_stream_free (uv_handle_t* h) {
+    uva_stream* s = (uva_stream*) h;
+    free(s->buf);
+    free(s);
+}
+
+// The close has two steps: the memory is released in the callback.
+static void uva_stream_fin (void* p) {
+    uva_stream* s = p;
+    s->waiter = NULL;
+    uv_close(&s->u.handle, uva_stream_free);
+}
+
+static uva_stream* uva_stream_of (AStatus* st, AVal v) {
+    if (!a_nat_is(v,UVA_KIND_STREAM)) {
+        *st = a_error("invalid stream");
+        return NULL;
+    }
+    if (a_nat_ptr(v) == NULL) {
+        *st = a_error("invalid stream : closed");
+        return NULL;
+    }
+    return a_nat_ptr(v);
+}
+
+// The running task waits for the stream: only one at a time.
+static void uva_stream_wait (AStatus* st, AVal v) {
+    uva_stream* s = uva_stream_of(st, v);
+    if (s == NULL) {
+        return;
+    }
+    if (s->waiter != NULL) {
+        *st = a_error("invalid stream : busy");
+        return;
+    }
+    s->waiter = a_cur;
+}
+
+static void uva_stream_unwait (AVal v, int reading) {
+    uva_stream* s = a_nat_ptr(v);
+    if (s!=NULL && s->waiter==a_cur) {
+        s->waiter = NULL;
+        if (reading) {
+            uv_read_stop(&s->u.stream);
+        }
+    }
+}
+
+// READ
+
+static void uva_alloc_cb (uv_handle_t* h, size_t hint, uv_buf_t* buf) {
+    uva_stream* s = (uva_stream*) h;
+    (void) hint;
+    if (s->off > 0) {
+        memmove(s->buf, s->buf+s->off, s->len-s->off);
+        s->len -= s->off;
+        s->off  = 0;
+    }
+    if (s->cap - s->len < 4096) {
+        s->cap = (s->cap < 4096) ? 8192 : s->cap*2;
+        s->buf = realloc(s->buf, s->cap);
+    }
+    *buf = uv_buf_init(s->buf+s->len, s->cap-s->len);
+}
+
+static void uva_read_cb (uv_stream_t* h, ssize_t n, const uv_buf_t* buf) {
+    uva_stream* s = (uva_stream*) h;
+    (void) buf;
+    if (n > 0) {
+        s->len += n;
+    } else if (n < 0) {
+        s->err = n;
+        uv_read_stop(h);
+    } else {
+        return;
+    }
+    uva_wake(&s->waiter);
+}
+
+static int uva_read_start (AStatus* st, AVal v) {
+    uva_stream* s = uva_stream_of(st, v);
+    if (s==NULL || s->err!=0) {
+        return 0;
+    }
+    return uv_read_start(&s->u.stream, uva_alloc_cb, uva_read_cb);
+}
+
+// Takes bytes from the buffer of the stream:
+//  - mode 0: all that it has
+//  - mode 1: `n` bytes
+//  - mode 2: a line, with no "\n"
+// Returns a string, or `false` if the bytes are still to come. When the
+// stream is over, returns what it still has, then `nil` at the end of the
+// stream, or the number of the error.
+static AVal uva_take (AStatus* st, AVal v, int mode, AVal vn) {
+    uva_stream* s = uva_stream_of(st, v);
+    if (s == NULL) {
+        return a_nil();
+    }
+    char*  p     = s->buf + s->off;
+    size_t avail = s->len - s->off;
+    size_t n     = 0;       // bytes of the result
+    size_t skip  = 0;       // bytes to discard after them
+    int    ok    = 0;
+    if (mode == 0) {
+        n  = avail;
+        ok = (avail > 0);
+    } else if (mode == 1) {
+        n  = a_isnum(vn) ? (size_t)a_dbl(vn) : 0;
+        ok = (avail >= n);
+    } else {
+        char* nl = (avail > 0) ? memchr(p, '\n', avail) : NULL;
+        if (nl != NULL) {
+            n    = nl - p;
+            skip = 1;
+            ok   = 1;
+        }
+    }
+    if (!ok) {
+        if (s->err == 0) {
+            return a_bool(0);
+        } else if (avail > 0) {
+            n = avail;
+        } else if (s->err == UV_EOF) {
+            return a_nil();
+        } else {
+            return a_int(s->err);
+        }
+    }
+    AVal ret = a_str(p, n);
+    s->off += n + skip;
+    if (s->off == s->len) {
+        s->off = s->len = 0;
+    }
+    return ret;
+}
+
+// WRITE
+
+static void uva_write_cb (uv_write_t* w, int status) {
+    uva_req_done((uva_req*)w, status);
+}
+
+static AVal uva_write (AStatus* st, AVal v, AVal str) {
+    uva_stream* s = uva_stream_of(st, v);
+    if (s == NULL) {
+        return a_nil();
+    }
+    if (str.type != A_STR) {
+        *st = a_error("invalid write : expected string");
+        return a_nil();
+    }
+    size_t n = A_STR_OF(str)->len;
+    uva_req* r;
+    AVal ret = uva_req_new(&r, n);
+    memcpy(r->data, A_STR_OF(str)->s, n);
+    uv_buf_t buf = uv_buf_init(r->data, n);
+    int err = uv_write(&r->u.write, &s->u.stream, &buf, 1, uva_write_cb);
+    if (err < 0) {
+        r->res  = err;
+        r->done = 1;
+    }
+    return ret;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// TCP
+///////////////////////////////////////////////////////////////////////////////
+
+static AVal uva_tcp_new (void) {
+    uva_stream* s = calloc(1, sizeof(uva_stream));
+    uv_tcp_init(UVA_LOOP, &s->u.tcp);
+    return a_nat(s, uva_stream_fin, UVA_KIND_STREAM);
+}
+
+// An address of IPv4 or IPv6. Returns 0, or an error.
+static int uva_addr (AStatus* st, AVal ip, AVal port, struct sockaddr_storage* addr) {
+    if (ip.type!=A_STR || !a_isnum(port)) {
+        *st = a_error("invalid address : expected ip and port");
+        return 0;
+    }
+    int err = uv_ip4_addr(A_STR_OF(ip)->s, (int)a_dbl(port), (struct sockaddr_in*)addr);
+    if (err < 0) {
+        err = uv_ip6_addr(A_STR_OF(ip)->s, (int)a_dbl(port), (struct sockaddr_in6*)addr);
+    }
+    return err;
+}
+
+// [ip, port] of a stream, or of its peer.
+static AVal uva_tcp_name (AStatus* st, AVal v, int peer) {
+    uva_stream* s = uva_stream_of(st, v);
+    if (s == NULL) {
+        return a_nil();
+    }
+    struct sockaddr_storage addr;
+    int len = sizeof(addr);
+    int err = peer
+        ? uv_tcp_getpeername(&s->u.tcp, (struct sockaddr*)&addr, &len)
+        : uv_tcp_getsockname(&s->u.tcp, (struct sockaddr*)&addr, &len);
+    if (err < 0) {
+        return a_int(err);
+    }
+    char ip[64] = "";
+    int  port;
+    if (addr.ss_family == AF_INET6) {
+        uv_ip6_name((struct sockaddr_in6*)&addr, ip, sizeof(ip));
+        port = ntohs(((struct sockaddr_in6*)&addr)->sin6_port);
+    } else {
+        uv_ip4_name((struct sockaddr_in*)&addr, ip, sizeof(ip));
+        port = ntohs(((struct sockaddr_in*)&addr)->sin_port);
+    }
+    AVal t = a_tab();
+    AVal x = a_strz(ip);
+    a_setindex(t, a_int(0), x);
+    a_setindex(t, a_int(1), a_int(port));
+    a_dec(x);
+    return t;
+}
+
+// CONNECT
+
+static void uva_connect_cb (uv_connect_t* c, int status) {
+    uva_req_done((uva_req*)c, status);
+}
+
+static AVal uva_tcp_connect (AStatus* st, AVal v, AVal ip, AVal port) {
+    uva_stream* s = uva_stream_of(st, v);
+    if (s == NULL) {
+        return a_nil();
+    }
+    struct sockaddr_storage addr;
+    int err = uva_addr(st, ip, port, &addr);
+    if (*st != A_OK) {
+        return a_nil();
+    }
+    uva_req* r;
+    AVal ret = uva_req_new(&r, 0);
+    if (err == 0) {
+        err = uv_tcp_connect(&r->u.connect, &s->u.tcp, (struct sockaddr*)&addr, uva_connect_cb);
+    }
+    if (err < 0) {
+        r->res  = err;
+        r->done = 1;
+    }
+    return ret;
+}
+
+// LISTEN
+
+static void uva_listen_cb (uv_stream_t* h, int status) {
+    uva_stream* s = (uva_stream*) h;
+    if (status < 0) {
+        s->err = status;
+    } else {
+        s->pending++;
+    }
+    uva_wake(&s->waiter);
+}
+
+static int uva_tcp_listen (AStatus* st, AVal v, AVal ip, AVal port, AVal backlog) {
+    uva_stream* s = uva_stream_of(st, v);
+    if (s == NULL) {
+        return 0;
+    }
+    struct sockaddr_storage addr;
+    int err = uva_addr(st, ip, port, &addr);
+    if (*st!=A_OK || err<0) {
+        return err;
+    }
+    err = uv_tcp_bind(&s->u.tcp, (struct sockaddr*)&addr, 0);
+    if (err < 0) {
+        return err;
+    }
+    return uv_listen(&s->u.stream, a_isnum(backlog) ? (int)a_dbl(backlog) : 128, uva_listen_cb);
+}
+
+// A pending connection as a new stream, or `false` if there is none, or the
+// number of the error.
+static AVal uva_tcp_accept (AStatus* st, AVal v) {
+    uva_stream* s = uva_stream_of(st, v);
+    if (s == NULL) {
+        return a_nil();
+    }
+    if (s->pending == 0) {
+        return (s->err < 0) ? a_int(s->err) : a_bool(0);
+    }
+    AVal ret = uva_tcp_new();
+    uva_stream* c = a_nat_ptr(ret);
+    int err = uv_accept(&s->u.stream, &c->u.stream);
+    s->pending--;
+    if (err < 0) {
+        a_dec(ret);
+        return a_int(err);
+    }
+    return ret;
+}
+
 #ifndef UVA_NO_MAIN
 int main (int argc, char** argv) {
     uva_init(argc, argv);
@@ -104,9 +508,123 @@ int main (int argc, char** argv) {
 #endif
 ```
 
+;; Throws the error of a result of libuv, or returns the result.
+func uv_chk (r) {
+    if (type(r) == :number) && (r < 0) {
+        throw `:value uva_error((int)a_dbl($r))`
+    }
+    r
+}
+
+;; Awaits a request, and returns its result.
+task uv_req (r) {
+    if !`:boolean ((uva_req*)a_nat_ptr($r))->done` {
+        `((uva_req*)a_nat_ptr($r))->waiter = a_cur;`
+        await :uv
+    }
+    uv_chk(`:number ((uva_req*)a_nat_ptr($r))->res`)
+}
+
+task uv_stream_take (s, mode, n) {
+    `uva_stream_wait(&st, $s);`
+    defer {
+        `uva_stream_unwait($s, 1);`
+    }
+    loop {
+        val v = uv_chk(`:value uva_take(&st, $s, (int)a_dbl($mode), $n)`)
+        if v != false {
+            break v
+        }
+        uv_chk(`:number uva_read_start(&st, $s)`)
+        await :uv
+    }
+}
+
+task uv_stream_read (s, n) {
+    await uv_stream_take(s, (if n==nil => 0 => 1), n)
+}
+
+task uv_stream_line (s) {
+    await uv_stream_take(s, 2, nil)
+}
+
+task uv_stream_write (s, str) {
+    pin r = `:value uva_write(&st, $s, $str)`
+    await uv_req(r)
+}
+
+func uv_tcp_listen (ip, port, backlog) {
+    val s = `:value uva_tcp_new()`
+    uv_chk(`:number uva_tcp_listen(&st, $s, $ip, $port, $backlog)`)
+    s
+}
+
+task uv_tcp_accept (srv) {
+    `uva_stream_wait(&st, $srv);`
+    defer {
+        `uva_stream_unwait($srv, 0);`
+    }
+    loop {
+        val c = uv_chk(`:value uva_tcp_accept(&st, $srv)`)
+        if c != false {
+            break c
+        }
+        await :uv
+    }
+}
+
+task uv_tcp_connect (ip, port) {
+    val s = `:value uva_tcp_new()`
+    pin r = `:value uva_tcp_connect(&st, $s, $ip, $port)`
+    await uv_req(r)
+    s
+}
+
 val uv = [
     ;; uv.now(): the time of the loop, in milliseconds
     now = func () {
         `:number uv_now(UVA_LOOP)`
     },
+
+    ;; uv.close(h): closes a handle now, before its last reference
+    close = func (h) {
+        `if ($h.type == A_NAT) { a_nat_close($h); }`
+    },
+
+    stream = [
+        ;; await uv.stream.read(s): the bytes that arrive, as a string
+        ;; await uv.stream.read(s, n): exactly `n` bytes
+        ;; At the end of the stream: what is left, then nil.
+        read = uv_stream_read,
+
+        ;; await uv.stream.line(s): a line, with no "\n"
+        ;; At the end of the stream: what is left, then nil.
+        line = uv_stream_line,
+
+        ;; await uv.stream.write(s, str): writes all bytes of the string
+        write = uv_stream_write,
+    ],
+
+    tcp = [
+        ;; uv.tcp.listen(ip, port, [backlog]): a server
+        listen = uv_tcp_listen,
+
+        ;; await uv.tcp.accept(srv): the next connection to the server
+        accept = uv_tcp_accept,
+
+        ;; await uv.tcp.connect(ip, port): a connection to a server
+        connect = uv_tcp_connect,
+
+        ;; uv.tcp.addr(s): the ip and the port of the stream
+        addr = func (s) {
+            val t = uv_chk(`:value uva_tcp_name(&st, $s, 0)`)
+            return t@0, t@1
+        },
+
+        ;; uv.tcp.peer(s): the ip and the port of the other side
+        peer = func (s) {
+            val t = uv_chk(`:value uva_tcp_name(&st, $s, 1)`)
+            return t@0, t@1
+        },
+    ],
 ]
