@@ -1,0 +1,7 @@
+open aborted
+read aborted
+write aborted
+stat aborted
+false	invalid file : busy
+done
+exit 0

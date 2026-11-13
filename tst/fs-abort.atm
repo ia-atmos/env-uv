@@ -1,0 +1,64 @@
+;; Aborting a task in the middle of an operation on files leaves nothing
+;; behind: a request that already runs in a thread ends before its file
+;; closes (the address sanitizer checks the memory).
+
+include "../uv.atm"
+
+;; open
+do {
+    pin t = spawn {
+        val f = await uv.fs.open("fs-01.txt")
+        print("never")
+    }
+    abort t
+}
+print("open aborted")
+
+;; read
+do {
+    pin t = spawn {
+        val f = await uv.fs.open("fs-01.txt")
+        await :go
+        await uv.fs.read(f)
+        print("never")
+    }
+    await 20ms
+    emit :go
+    abort t
+}
+print("read aborted")
+
+;; write, with much data
+do {
+    var big = "0123456789"
+    loop in 20 {
+        set big = big ++ big
+    }
+    pin t = spawn {
+        val f = await uv.fs.open("../build/tst/fs-abort.txt", "w")
+        await :go
+        await uv.fs.write(f, big)
+        print("never")
+    }
+    await 20ms
+    emit :go
+    abort t
+}
+print("write aborted")
+
+;; stat
+watching 0ms {
+    await uv.fs.stat("fs-01.txt")
+    print("never")
+}
+print("stat aborted")
+
+;; two readers of one file
+val f = await uv.fs.open("fs-01.txt")
+spawn {
+    await uv.fs.read(f)
+}
+print(catch true { await uv.fs.read(f) })
+await 20ms
+await uv.fs.unlink("../build/tst/fs-abort.txt")
+print("done")
