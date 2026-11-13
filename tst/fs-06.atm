@@ -1,0 +1,22 @@
+;; ceu-libuv: samples/fs-06.ceu
+;; The size of a file, and its last 10 bytes.
+;; Test: the file is the one that fs-05 writes, written here again.
+
+include "../uv.atm"
+
+val path = "../build/tst/fs-06.txt"
+do {
+    val f = await uv.fs.open(path, "w")
+    loop in 20 {
+        await uv.fs.write(f, "abcdefghijklmnopqrstuvwxyz\n")
+    }
+}
+
+val f = await uv.fs.open(path)
+val stat = await uv.fs.stat(f)
+assert(stat.size == 540)
+uv.fs.seek(f, stat.size - 10)
+val buf = await uv.fs.read(f, 10)
+print("n = " ++ #buf)
+print(">>> " ++ buf)
+assert(buf == "rstuvwxyz\n")
