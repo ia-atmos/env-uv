@@ -120,8 +120,15 @@ static AVal uva_error (int r) {
 ///////////////////////////////////////////////////////////////////////////////
 
 // A task that waits for a callback registers itself (`a_cur`) in the handle
-// or request, and awaits the event `:uv`, which the callback emits to that
-// task only. The task removes itself when it terminates or aborts.
+// or request, and awaits the event `:uv` with a predicate that only accepts
+// its own awake (`UVA_WAKE`). The task removes itself when it terminates or
+// aborts.
+//
+// The event is a broadcast, since an exit of the task that awakes (an error)
+// must reach the tasks that await it, which an emit to the task alone would
+// not do.
+
+static struct ATask* UVA_WAKE = NULL;
 
 static void uva_wake (struct ATask** w) {
     if (*w==NULL || UVA_QUIT) {
@@ -132,7 +139,9 @@ static void uva_wake (struct ATask** w) {
         return;
     }
     AVal tag = a_strz("uv");
-    UVA_ST = a_emit(a_obj(&(*w)->node.hdr), tag);
+    UVA_WAKE = *w;
+    UVA_ST = atm_emit(tag);
+    UVA_WAKE = NULL;
     a_dec(tag);
 }
 
@@ -520,7 +529,7 @@ func uv_chk (r) {
 task uv_req (r) {
     if !`:boolean ((uva_req*)a_nat_ptr($r))->done` {
         `((uva_req*)a_nat_ptr($r))->waiter = a_cur;`
-        await :uv
+        await :uv until `:boolean UVA_WAKE == a_cur`
     }
     uv_chk(`:number ((uva_req*)a_nat_ptr($r))->res`)
 }
@@ -536,7 +545,7 @@ task uv_stream_take (s, mode, n) {
             break v
         }
         uv_chk(`:number uva_read_start(&st, $s)`)
-        await :uv
+        await :uv until `:boolean UVA_WAKE == a_cur`
     }
 }
 
@@ -569,7 +578,7 @@ task uv_tcp_accept (srv) {
         if c != false {
             break c
         }
-        await :uv
+        await :uv until `:boolean UVA_WAKE == a_cur`
     }
 }
 
