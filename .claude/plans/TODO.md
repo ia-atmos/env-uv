@@ -7,29 +7,29 @@ The working plan is `.claude/plans/261113-env-uv.md`.
 
 ## A. Decisions waiting for the author
 
-- Permission to build the compiler in this container (`make` in the clone
-  of `ia-atmos/lang`): the session's permission mode refused it.
-- Permission to install `libuv1-dev` (the runtime library `libuv1t64`
-  1.48.0 is present; the headers are not).
-- (confirm) Who owns the loop: the environment defines `main` and runs the
-  loop of libuv, and also offers one step of the loop as a function.
-  U0 depends on it.
-- (confirm) The order of the features: timers; TCP; streams; names; files.
-- (confirm) The samples of `ceu-libuv` as the tests and as the comparison
-  with Céu.
 - The local remote still points to `fsantanna/uv` (it redirects): the
   session's permission mode refused the change to `ia-atmos/env-uv`.
+- Names of the events and tags across environments (the plan leaves it
+  open): here, errors are `:uv.error.<NAME>`, and the only event is the
+  internal `:uv`.
 
 ## B. Work known and not done
 
-- U0: readme, the loop with timers only, the runner of tests.
-- U1 to U6: see the plan.
+- U3: names (`getaddrinfo`).
+- U4: files, and the twelve file samples of `ceu-libuv`.
+- U5: `doc/api.md`, `doc/guide.md`, the comparison with Céu.
+- U6: to decide with the author: UDP, processes, an application, a GUI.
+- A benchmark of many connections, to measure the cost of the broadcast
+  per callback (promised to the compiler session).
 - Talk to the session `iup` (`ia-atmos/env-iup`) about two loops in one
-  program, when the loop is in place.
+  program: `uva_step` is ready for it.
 
 ## C. Reported and not acknowledged
 
-- (none)
+- To the compiler session: finding 1, `pin b = await T()` fails with
+  "invalid pin : shared value".
+- To the compiler session: finding 2, `a_emit(task, evt)` from a driver
+  returns the exit of the task instead of delivering it to who awaits.
 
 ## D. Older items
 
