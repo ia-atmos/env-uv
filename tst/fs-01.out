@@ -1,0 +1,3 @@
+(should generate error ENOENT)
+open error: ENOENT
+exit 0

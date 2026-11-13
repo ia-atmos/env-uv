@@ -1,0 +1,15 @@
+;; ceu-libuv: samples/fs-01.ceu and samples/fs-02.ceu
+;; A file that does not exist: the error is caught. The two samples
+;; differ in Céu (an exception against `UV_FS_Open_Try`); here an error
+;; is always a throw.
+
+include "../uv.atm"
+
+print("(should generate error ENOENT)")
+val ok, e = catch :uv.error {
+    val f = await uv.fs.open("/non/existent/path")
+    print("open ok")
+}
+if !ok {
+    print("open error: " ++ e.name)
+}
