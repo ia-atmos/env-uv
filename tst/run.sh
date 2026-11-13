@@ -27,7 +27,7 @@ for t in $TESTS; do
     if ! "$ATMOS" -o "$OUT/$t" "tst/$t.atm" 2> "$OUT/$t.err"; then
         echo "FAIL $t (build)"; cat "$OUT/$t.err"; FAIL=1; continue
     fi
-    (cd tst && timeout 60 "../$OUT/$t") > "$OUT/$t.out" 2>&1
+    (cd tst && timeout 20 "../$OUT/$t") > "$OUT/$t.out" 2>&1
     echo "exit $?" >> "$OUT/$t.out"
     if [ -n "$UPDATE" ]; then
         cp "$OUT/$t.out" "tst/$t.out"; echo "new  $t"
