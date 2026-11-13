@@ -1,0 +1,40 @@
+;; The echo server and its client in one program, on the loopback.
+;; The server echoes lines; a client that closes ends its task.
+
+include "../uv.atm"
+
+task Client (s) {
+    defer {
+        print("server: client closed")
+    }
+    loop {
+        val line = await uv.stream.line(s)
+        until line == nil
+        await uv.stream.write(s, line ++ "\n")
+    }
+}
+
+val srv = uv.tcp.listen("127.0.0.1", 0)
+val ip, port = uv.tcp.addr(srv)
+print(ip, port > 0)
+
+pin cs = tasks()
+spawn {
+    loop {
+        val s = await uv.tcp.accept(srv)
+        spawn @cs Client(s)
+    }
+}
+
+do {
+    val c = await uv.tcp.connect(ip, port)
+    val _, p = uv.tcp.peer(c)
+    print(p == port)
+    loop i in 3 {
+        await uv.stream.write(c, "hello " ++ i ++ "\n")
+        val line = await uv.stream.line(c)
+        print("client: " ++ line)
+    }
+}                       ;; the connection closes here
+await :any cs
+print("done")

@@ -1,0 +1,8 @@
+127.0.0.1	true
+true
+client: hello 0
+client: hello 1
+client: hello 2
+server: client closed
+done
+exit 0
