@@ -1,0 +1,55 @@
+;; ceu-libuv: samples/tcp-08.ceu
+;; Two "echo" servers and four "echo" clients. One server stops in the
+;; middle: its two clients terminate.
+;; Test: port 0; 100ms, 50ms, and 10ms (the original: 10s, 5s, and 1s).
+
+include "../uv.atm"
+
+task Handler (s) {
+    loop {
+        val buf = await uv.stream.read(s)
+        until buf == nil
+        await uv.stream.write(s, buf)
+    }
+}
+
+task Client (id, port) {
+    val c = await uv.tcp.connect("127.0.0.1", port)
+    var n = 0
+    loop {
+        await 10ms
+        await uv.stream.write(c, "Alo mundo!\n")
+        val line = await uv.stream.line(c)
+        until line == nil
+        set n = n + 1
+    }
+    print("[client " ++ id ++ "] stop", (n >= 3) && (n <= 5))
+}
+
+val srv0 = uv.tcp.listen("127.0.0.1", 0)
+val srv1 = uv.tcp.listen("127.0.0.1", 0)
+val _, port0 = uv.tcp.addr(srv0)
+val _, port1 = uv.tcp.addr(srv1)
+
+print("I will terminate after 100ms...")
+
+watching 100ms {
+    par {
+        await uv.tcp.serve(srv0, Handler)
+    } with {
+        watching 50ms {
+            await uv.tcp.serve(srv1, Handler)
+        }
+        print("[server 1] stop")
+    } with {
+        await Client(0, port0)
+    } with {
+        await Client(1, port0)
+    } with {
+        await Client(2, port1)
+    } with {
+        await Client(3, port1)
+    }
+}
+
+print("DONE!")

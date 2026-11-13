@@ -1,0 +1,6 @@
+I will terminate after 100ms...
+[server 1] stop
+[client 2] stop	true
+[client 3] stop	true
+DONE!
+exit 0
