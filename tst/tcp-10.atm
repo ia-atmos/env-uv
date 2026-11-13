@@ -1,0 +1,46 @@
+;; ceu-libuv: samples/tcp-10.ceu
+;; The echo of a big file, line by line: one client, then the server
+;; terminates.
+;; Test: as tcp-09, and the client reads lines and checks each one.
+
+include "../uv.atm"
+
+task Client (client) {
+    loop {
+        val line = await uv.stream.line(client)
+        until line == nil
+        await uv.stream.write(client, line ++ "\n")
+    }
+}
+
+val srv = uv.tcp.listen("127.0.0.1", 0)
+val ip, port = uv.tcp.addr(srv)
+
+pin tst = spawn {
+    var file = ""
+    loop i in (1, 10000) {
+        set file = file ++ i ++ "\n"
+    }
+    val c = await uv.tcp.connect(ip, port)
+    par :all {
+        await uv.stream.write(c, file)
+        await uv.stream.shutdown(c)
+    } with {
+        var n = 0
+        loop {
+            val line = await uv.stream.line(c)
+            until line == nil
+            set n = n + 1
+            assert(line == tostring(n))
+        }
+        print("[test]", n)
+    }
+}
+
+do {
+    val client = await uv.tcp.accept(srv)
+    await Client(client)
+}                       ;; the connection closes here
+await(tst)
+
+print("DONE!")
