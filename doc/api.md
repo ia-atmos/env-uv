@@ -151,7 +151,8 @@ Strings are sequences of bytes: they may hold any value, including zeros.
 | `uv.tcp.addr(s)` | the ip and the port of the stream, as two values |
 | `uv.tcp.peer(s)` | the ip and the port of the other side |
 
-Addresses are of IPv4 (`"127.0.0.1"`) or IPv6 (`"::1"`).
+Addresses are of IPv4 (`"127.0.0.1"`) or IPv6 (`"::1"`). IPv6 was not
+tested: the machine of the tests has none.
 
 A server with a task for each connection:
 
