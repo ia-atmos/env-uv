@@ -13,12 +13,12 @@ task Client (client) {
     print("[client]: end of file")
 }
 
-val srv = uv.tcp.listen("127.0.0.1", 0)
+pin srv = uv.tcp.listen("127.0.0.1", 0)
 val ip, port = uv.tcp.addr(srv)
 
 val log = [[], [], []]
 task Test (id) {
-    val c = await uv.tcp.connect(ip, port)
+    pin c = await uv.tcp.connect(ip, port)
     loop i in 2 {
         await uv.stream.write(c, "hello " ++ i ++ " from " ++ id)
         set log@id@+ = await uv.stream.read(c)

@@ -11,11 +11,11 @@ task Handler (s) {
     }
 }
 
-val srv = uv.tcp.listen("127.0.0.1", 0)
+pin srv = uv.tcp.listen("127.0.0.1", 0)
 val ip, port = uv.tcp.addr(srv)
 spawn uv.tcp.serve(srv, Handler)
 
-val c = await uv.tcp.connect(ip, port)
+pin c = await uv.tcp.connect(ip, port)
 
 loop i in 3 {
     await 10ms

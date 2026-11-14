@@ -7,14 +7,14 @@ val path = "../build/tst/fs-03.txt"
 val abc  = "abcdefghijklmnopqrstuvwxyz\n"
 
 do {
-    val f = await uv.fs.open(path, "w")
+    pin f = await uv.fs.open(path, "w")
     loop in 20 {
         val n = await uv.fs.write(f, abc)
         assert(n == 27)
     }
 }
 
-val f = await uv.fs.open(path)
+pin f = await uv.fs.open(path)
 var n = 0
 loop {
     val line = await uv.fs.line(f)

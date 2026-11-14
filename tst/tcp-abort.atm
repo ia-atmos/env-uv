@@ -1,7 +1,7 @@
 ;; Aborting a task in the middle of an operation closes its handles and
 ;; leaves nothing behind (the address sanitizer checks the memory).
 
-val srv = uv.tcp.listen("127.0.0.1", 0)
+pin srv = uv.tcp.listen("127.0.0.1", 0)
 val ip, port = uv.tcp.addr(srv)
 
 ;; accept: aborted with no connection
@@ -14,7 +14,7 @@ print("accept aborted")
 ;; connect: aborted at once, before the connection is made
 do {
     pin t = spawn {
-        val c = await uv.tcp.connect(ip, port)
+        pin c = await uv.tcp.connect(ip, port)
         print("never")
     }
     abort t
@@ -23,21 +23,21 @@ print("connect aborted")
 
 ;; the server still gets that connection, which is already closed
 do {
-    val s = await uv.tcp.accept(srv)
+    pin s = await uv.tcp.accept(srv)
     print("read", (await uv.stream.read(s)))
 }
 
 ;; read: the client is aborted while it reads, the server sees the end
 do {
     pin t = spawn {
-        val c = await uv.tcp.connect(ip, port)
+        pin c = await uv.tcp.connect(ip, port)
         defer {
             print("client aborted")
         }
         await uv.stream.read(c)
         print("never")
     }
-    val s = await uv.tcp.accept(srv)
+    pin s = await uv.tcp.accept(srv)
     await 50ms
     abort t
     print("line", (await uv.stream.line(s)))
@@ -45,8 +45,8 @@ do {
 
 ;; a stream is free again after its reader is aborted
 do {
-    val c = await uv.tcp.connect(ip, port)
-    val s = await uv.tcp.accept(srv)
+    pin c = await uv.tcp.connect(ip, port)
+    pin s = await uv.tcp.accept(srv)
     watching 50ms {
         await uv.stream.read(s)
         print("never")
@@ -57,8 +57,8 @@ do {
 
 ;; write: aborted before it completes, with much data
 do {
-    val c = await uv.tcp.connect(ip, port)
-    val s = await uv.tcp.accept(srv)
+    pin c = await uv.tcp.connect(ip, port)
+    pin s = await uv.tcp.accept(srv)
     var big = "0123456789"
     loop in 20 {
         set big = big ++ big
@@ -77,7 +77,7 @@ do {
     pin cs = tasks()
     loop in 3 {
         spawn @cs (task () {
-            val c = await uv.tcp.connect(ip, port)
+            pin c = await uv.tcp.connect(ip, port)
             await uv.stream.read(c)
         }) ()
     }

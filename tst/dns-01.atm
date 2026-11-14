@@ -21,10 +21,10 @@ task Echo (s) {
     val line = await uv.stream.line(s)
     await uv.stream.write(s, line ++ "\n")
 }
-val srv = uv.tcp.listen("127.0.0.1", 0)
+pin srv = uv.tcp.listen("127.0.0.1", 0)
 val _, port = uv.tcp.addr(srv)
 spawn uv.tcp.serve(srv, Echo)
 
-val c = await uv.tcp.connect("localhost", port)
+pin c = await uv.tcp.connect("localhost", port)
 await uv.stream.write(c, "by name\n")
 print((await uv.stream.line(c)))

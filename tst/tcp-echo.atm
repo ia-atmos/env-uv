@@ -12,7 +12,7 @@ task Client (s) {
     }
 }
 
-val srv = uv.tcp.listen("127.0.0.1", 0)
+pin srv = uv.tcp.listen("127.0.0.1", 0)
 val ip, port = uv.tcp.addr(srv)
 print(ip, port > 0)
 
@@ -25,7 +25,7 @@ spawn {
 }
 
 do {
-    val c = await uv.tcp.connect(ip, port)
+    pin c = await uv.tcp.connect(ip, port)
     val _, p = uv.tcp.peer(c)
     print(p == port)
     loop i in 3 {

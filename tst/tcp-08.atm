@@ -12,7 +12,7 @@ task Handler (s) {
 }
 
 task Client (id, port) {
-    val c = await uv.tcp.connect("127.0.0.1", port)
+    pin c = await uv.tcp.connect("127.0.0.1", port)
     var n = 0
     loop {
         await 10ms
@@ -24,8 +24,8 @@ task Client (id, port) {
     print("[client " ++ id ++ "] stop", (n >= 3) && (n <= 5))
 }
 
-val srv0 = uv.tcp.listen("127.0.0.1", 0)
-val srv1 = uv.tcp.listen("127.0.0.1", 0)
+pin srv0 = uv.tcp.listen("127.0.0.1", 0)
+pin srv1 = uv.tcp.listen("127.0.0.1", 0)
 val _, port0 = uv.tcp.addr(srv0)
 val _, port1 = uv.tcp.addr(srv1)
 

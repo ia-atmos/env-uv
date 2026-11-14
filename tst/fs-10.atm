@@ -6,12 +6,12 @@
 val src = "../build/tst/fs-10-src.txt"
 val dst = "../build/tst/fs-10-dst.txt"
 do {
-    val f = await uv.fs.open(src, "w")
+    pin f = await uv.fs.open(src, "w")
     await uv.fs.write(f, "Hello World!\nfrom\nAtmos\n")
 }
 
 task All (path) {
-    val f = await uv.fs.open(path)
+    pin f = await uv.fs.open(path)
     var all = ""
     loop {
         val buf = await uv.fs.read(f)

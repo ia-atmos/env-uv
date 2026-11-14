@@ -3,5 +3,5 @@
 ;; terminates with it.
 
 print("(should generate uncaught exception)")
-val f = await uv.fs.open("/non/existent/path")
+pin f = await uv.fs.open("/non/existent/path")
 print("open ok")

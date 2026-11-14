@@ -5,8 +5,8 @@
 ;; Test: port 0, 100ms (the original: 10s), and a client for each server,
 ;; which sends two lines in three pieces.
 
-val srv0 = uv.tcp.listen("127.0.0.1", 0)
-val srv1 = uv.tcp.listen("127.0.0.1", 0)
+pin srv0 = uv.tcp.listen("127.0.0.1", 0)
+pin srv1 = uv.tcp.listen("127.0.0.1", 0)
 val _, PORT0 = uv.tcp.addr(srv0)
 val _, PORT1 = uv.tcp.addr(srv1)
 
@@ -50,7 +50,7 @@ spawn Server(srv0)
 spawn Server(srv1)
 
 task Test (port) {
-    val c = await uv.tcp.connect("127.0.0.1", port)
+    pin c = await uv.tcp.connect("127.0.0.1", port)
     loop _,s in ["one", " line\ntw", "o lines\n"] {
         await uv.stream.write(c, s)
         await 10ms

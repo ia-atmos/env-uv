@@ -5,7 +5,7 @@
 ;; open
 do {
     pin t = spawn {
-        val f = await uv.fs.open("fs-01.txt")
+        pin f = await uv.fs.open("fs-01.txt")
         print("never")
     }
     abort t
@@ -15,7 +15,7 @@ print("open aborted")
 ;; read
 do {
     pin t = spawn {
-        val f = await uv.fs.open("fs-01.txt")
+        pin f = await uv.fs.open("fs-01.txt")
         await :go
         await uv.fs.read(f)
         print("never")
@@ -33,7 +33,7 @@ do {
         set big = big ++ big
     }
     pin t = spawn {
-        val f = await uv.fs.open("../build/tst/fs-abort.txt", "w")
+        pin f = await uv.fs.open("../build/tst/fs-abort.txt", "w")
         await :go
         await uv.fs.write(f, big)
         print("never")
@@ -52,7 +52,7 @@ watching 0ms {
 print("stat aborted")
 
 ;; two readers of one file
-val f = await uv.fs.open("fs-01.txt")
+pin f = await uv.fs.open("fs-01.txt")
 spawn {
     await uv.fs.read(f)
 }

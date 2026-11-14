@@ -19,15 +19,15 @@ task Server (srv) {
     }
 }
 
-val srv1 = uv.tcp.listen("127.0.0.1", 0)
-val srv2 = uv.tcp.listen("127.0.0.1", 0)
+pin srv1 = uv.tcp.listen("127.0.0.1", 0)
+pin srv2 = uv.tcp.listen("127.0.0.1", 0)
 spawn Server(srv1)
 spawn Server(srv2)
 
 val log = []
 task Test (id, srv) {
     val ip, port = uv.tcp.addr(srv)
-    val c = await uv.tcp.connect(ip, port)
+    pin c = await uv.tcp.connect(ip, port)
     await uv.stream.write(c, "hello from " ++ id)
     set log@id = await uv.stream.read(c)
 }

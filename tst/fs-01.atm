@@ -5,7 +5,7 @@
 
 print("(should generate error ENOENT)")
 val ok, e = catch :uv.error {
-    val f = await uv.fs.open("/non/existent/path")
+    pin f = await uv.fs.open("/non/existent/path")
     print("open ok")
 }
 if !ok {

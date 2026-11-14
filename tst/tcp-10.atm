@@ -11,7 +11,7 @@ task Client (client) {
     }
 }
 
-val srv = uv.tcp.listen("127.0.0.1", 0)
+pin srv = uv.tcp.listen("127.0.0.1", 0)
 val ip, port = uv.tcp.addr(srv)
 
 pin tst = spawn {
@@ -19,7 +19,7 @@ pin tst = spawn {
     loop i in (1, 10000) {
         set file = file ++ i ++ "\n"
     }
-    val c = await uv.tcp.connect(ip, port)
+    pin c = await uv.tcp.connect(ip, port)
     par :all {
         await uv.stream.write(c, file)
         await uv.stream.shutdown(c)
@@ -36,7 +36,7 @@ pin tst = spawn {
 }
 
 do {
-    val client = await uv.tcp.accept(srv)
+    pin client = await uv.tcp.accept(srv)
     await Client(client)
 }                       ;; the connection closes here
 await(tst)

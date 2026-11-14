@@ -2,7 +2,7 @@
 
 ;; a port with no server
 val port = do {
-    val srv = uv.tcp.listen("127.0.0.1", 0)
+    pin srv = uv.tcp.listen("127.0.0.1", 0)
     val _, p = uv.tcp.addr(srv)
     p
 }
@@ -18,7 +18,7 @@ val ok2, e2 = catch :uv.error.EINVAL {
 print(ok2, e2.name)
 
 ;; a port in use
-val srv = uv.tcp.listen("127.0.0.1", 0)
+pin srv = uv.tcp.listen("127.0.0.1", 0)
 val _, p = uv.tcp.addr(srv)
 val ok3, e3 = catch :uv.error {
     uv.tcp.listen("127.0.0.1", p)
@@ -31,9 +31,9 @@ print(catch true { uv.tcp.addr(srv) })
 print(catch true { await uv.stream.read(10) })
 
 ;; two tasks read the same stream
-val srv2 = uv.tcp.listen("127.0.0.1", 0)
+pin srv2 = uv.tcp.listen("127.0.0.1", 0)
 val _, p2 = uv.tcp.addr(srv2)
-val c = await uv.tcp.connect("127.0.0.1", p2)
+pin c = await uv.tcp.connect("127.0.0.1", p2)
 spawn {
     await uv.stream.read(c)
 }

@@ -4,13 +4,13 @@
 
 val path = "../build/tst/fs-06.txt"
 do {
-    val f = await uv.fs.open(path, "w")
+    pin f = await uv.fs.open(path, "w")
     loop in 20 {
         await uv.fs.write(f, "abcdefghijklmnopqrstuvwxyz\n")
     }
 }
 
-val f = await uv.fs.open(path)
+pin f = await uv.fs.open(path)
 val stat = await uv.fs.stat(f)
 assert(stat.size == 540)
 uv.fs.seek(f, stat.size - 10)
