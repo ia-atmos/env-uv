@@ -1,0 +1,7 @@
+b	0> hello
+c	0> hello
+a	2> hi
+b	2> hi
+a	2> (left)
+b	2> (left)
+exit 0

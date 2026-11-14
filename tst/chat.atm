@@ -1,0 +1,47 @@
+;; exs/chat.atm, with three clients in the program: each line that a
+;; client sends goes to all the others, and so does its leave.
+
+task Client (s, id) {
+    par :any {
+        loop {
+            val line = await uv.stream.line(s)
+            until line == nil
+            emit @:global (:msg [from=id, text=line])
+        }
+    } with {
+        loop e on :msg {
+            if e.from != id {
+                await uv.stream.write(s, e.from ++ "> " ++ e.text ++ "\n")
+            }
+        }
+    }
+    emit @:global (:msg [from=id, text="(left)"])
+}
+
+pin srv = uv.tcp.listen("127.0.0.1", 0)
+val ip, port = uv.tcp.addr(srv)
+pin cs = tasks()
+spawn {
+    loop id {
+        val s = await uv.tcp.accept(srv)
+        spawn @cs Client(s, id)
+    }
+}
+
+;; the clients connect one after the other, so that their ids are fixed
+pin a = await uv.tcp.connect(ip, port)
+await 10ms
+pin b = await uv.tcp.connect(ip, port)
+await 10ms
+do {
+    pin c = await uv.tcp.connect(ip, port)
+    await 10ms
+    await uv.stream.write(a, "hello\n")
+    print("b", (await uv.stream.line(b)))
+    print("c", (await uv.stream.line(c)))
+    await uv.stream.write(c, "hi\n")
+    print("a", (await uv.stream.line(a)))
+    print("b", (await uv.stream.line(b)))
+}                               ;; c leaves
+print("a", (await uv.stream.line(a)))
+print("b", (await uv.stream.line(b)))
