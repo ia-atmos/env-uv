@@ -20,6 +20,15 @@ UPDATE=
 [ "$1" = "-u" ] && { UPDATE=1; shift; }
 [ "${ASAN:-1}" = "1" ] && export ATMOS_ASAN=1
 
+# the samples only build: they use fixed ports and long timers
+if [ $# = 0 ]; then
+    for f in samples/*.atm; do
+        ATMOS_ASAN= "$ATMOS" -o "$OUT/sample" "$f" 2> "$OUT/sample.err" ||
+            { echo "FAIL $f (build)"; cat "$OUT/sample.err"; FAIL=1; }
+    done
+    echo "ok   samples (build)"
+fi
+
 TESTS=${*:-$(ls tst/*.atm | xargs -n1 basename | sed 's/\.atm$//')}
 for t in $TESTS; do
     if ! "$ATMOS" -o "$OUT/$t" "tst/$t.atm" 2> "$OUT/$t.err"; then
