@@ -7,27 +7,25 @@
 #   tst/run.sh -u tcp-01    stores the output of the tests
 #   ASAN=0 tst/run.sh       with no sanitizer
 #
-# Needs the Atmos compiler: ATMOS=<path to the binary> (default: `atmos`
-# in ../lang, or in the PATH).
+# Uses `atmos-uv`, the compiler dedicated to this environment, which
+# `make` builds from the Atmos compiler in ../lang (or LANG=<dir>).
 
 cd "$(dirname "$0")/.."
-if [ -z "$ATMOS" ]; then
-    if [ -x ../lang/atmos ]; then ATMOS=../lang/atmos; else ATMOS=atmos; fi
-fi
+make -s atmos-uv > /dev/null || exit 1
+ATMOS=./atmos-uv
 OUT=build/tst
 mkdir -p "$OUT"
 FAIL=0
 UPDATE=
 [ "$1" = "-u" ] && { UPDATE=1; shift; }
 [ "${ASAN:-1}" = "1" ] && export ATMOS_ASAN=1
-export ATMOS_LDFLAGS="-luv"
 
 TESTS=${*:-$(ls tst/*.atm | xargs -n1 basename | sed 's/\.atm$//')}
 for t in $TESTS; do
     if ! "$ATMOS" -o "$OUT/$t" "tst/$t.atm" 2> "$OUT/$t.err"; then
         echo "FAIL $t (build)"; cat "$OUT/$t.err"; FAIL=1; continue
     fi
-    (cd tst && timeout 20 "../$OUT/$t"; echo "exit $?") 2>&1 | sed 's/0x[0-9a-f]*/0x?/g; s/uv.atm:[0-9]*/uv.atm:?/g' > "$OUT/$t.out"
+    (cd tst && timeout 20 "../$OUT/$t"; echo "exit $?") 2>&1 | sed 's/0x[0-9a-f]*/0x?/g; s|[^ ]*uv.atm:[0-9]*|uv.atm:?|g' > "$OUT/$t.out"
     if [ -n "$UPDATE" ]; then
         cp "$OUT/$t.out" "tst/$t.out"; echo "new  $t"
     elif diff -u "tst/$t.out" "$OUT/$t.out"; then
