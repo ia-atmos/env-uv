@@ -885,9 +885,7 @@ int main (int argc, char** argv) {
 ;; Throws the error of a result of libuv, or returns the result.
 func uv_chk (r) {
     if (type(r) == :number) && (r < 0) {
-        ;; the second value only makes an uncaught error readable
-        throw `:value uva_error((int)a_dbl($r))`,
-              `:string uv_err_name((int)a_dbl($r))` ++ " : " ++ `:string uv_strerror((int)a_dbl($r))`
+        throw `:value uva_error((int)a_dbl($r))`
     }
     r
 }
