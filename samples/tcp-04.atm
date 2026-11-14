@@ -1,0 +1,47 @@
+;; ceu-libuv: samples/tcp-04.ceu
+;; Two parallel "echo" servers: "7000" echoes back whatever arrives, and
+;; "7001" echoes back on every line.
+
+task Handler0 (client) {
+    loop {
+        val buf = await uv.stream.read(client)
+        until buf == nil
+        print("[handler-0] " ++ buf)
+        await uv.stream.write(client, buf)
+    }
+}
+
+task Handler1 (client) {
+    loop {
+        val line = await uv.stream.line(client)
+        until line == nil
+        print("[handler-1] " ++ line)
+        await uv.stream.write(client, line ++ "\n")
+    }
+}
+
+task Client (client) {
+    val _, port = uv.tcp.addr(client)
+    if port == 7000 {
+        await Handler0(client)
+    } else {
+        await Handler1(client)
+    }
+    print("[client]: end of file")
+}
+
+task Server (ip, port) {
+    pin server = uv.tcp.listen(ip, port)
+    pin cs = tasks(10)
+    loop {
+        val client = await uv.tcp.accept(server)
+        spawn @cs Client(client)
+    }
+}
+
+spawn Server("0.0.0.0", 7000)
+spawn Server("0.0.0.0", 7001)
+
+print("I will terminate after 10s...")
+await 10s
+print("DONE!")

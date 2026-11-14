@@ -1,0 +1,27 @@
+;; ceu-libuv: samples/tcp-07.ceu
+;; An "echo" client and server in one program.
+
+task Handler (stream) {
+    loop {
+        val buf = await uv.stream.read(stream)
+        until buf == nil
+        print("[server] " ++ buf)
+        await uv.stream.write(stream, buf)
+    }
+}
+
+pin server = uv.tcp.listen("0.0.0.0", 7000)
+spawn uv.tcp.serve(server, Handler)
+
+pin c = await uv.tcp.connect("127.0.0.1", 7000)
+
+print("I will terminate after 10s...")
+
+loop in 10 {
+    await 1s
+    await uv.stream.write(c, "Alo mundo!\n")
+    val str = await uv.stream.read(c)
+    print("[client] " ++ str)
+}
+
+print("DONE!")

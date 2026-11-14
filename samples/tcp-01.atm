@@ -1,0 +1,22 @@
+;; ceu-libuv: samples/tcp-01.ceu
+;; A sequential "echo" server: one client at a time, on port 7000.
+;;  - nc localhost 7000
+
+pin server = uv.tcp.listen("0.0.0.0", 7000)
+
+print("I will terminate after two connections...")
+
+loop i in 2 {
+    print(">>> " ++ i)
+    pin client = await uv.tcp.accept(server)
+    loop {
+        val buf = await uv.stream.read(client)
+        if buf == nil {
+            print("[read]: end of file")
+            break
+        }
+        await uv.stream.write(client, buf)
+    }
+}
+
+print("DONE!")

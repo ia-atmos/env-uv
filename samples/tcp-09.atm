@@ -1,0 +1,14 @@
+;; ceu-libuv: samples/tcp-09.ceu
+;; The echo of a big file.
+;;  - cat samples/fs-01.txt | nc localhost 7000
+
+pin server = uv.tcp.listen("0.0.0.0", 7000)
+pin client = await uv.tcp.accept(server)
+
+loop {
+    val buf = await uv.stream.read(client)
+    until buf == nil
+    await uv.stream.write(client, buf)
+}
+
+print("DONE!")

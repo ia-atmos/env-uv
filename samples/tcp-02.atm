@@ -1,0 +1,24 @@
+;; ceu-libuv: samples/tcp-02.ceu
+;; A parallel "echo" server: multiple clients at the same time.
+
+task Client (client) {
+    loop {
+        val buf = await uv.stream.read(client)
+        until buf == nil
+        await uv.stream.write(client, buf)
+    }
+    print("[error]: end of file")
+}
+
+print("I will terminate after 10s...")
+
+pin server = uv.tcp.listen("0.0.0.0", 7000)
+pin cs = tasks(10)
+watching 10s {
+    loop {
+        val client = await uv.tcp.accept(server)
+        spawn @cs Client(client)
+    }
+}
+
+print("DONE!")

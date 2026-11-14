@@ -1,0 +1,15 @@
+;; ceu-libuv: samples/tcp-05.ceu and samples/tcp-06.ceu
+;; A sequential "echo" client. The two samples differ in Céu in how they
+;; connect; here there is one way. An echo server for it:
+;;  - mkfifo /tmp/fifo ; cat /tmp/fifo | nc -l 7000 > /tmp/fifo
+
+pin c = await uv.tcp.connect("127.0.0.1", 7000)
+
+loop in 10 {
+    await 1s
+    await uv.stream.write(c, "Alo mundo!\n")
+    val str = await uv.stream.read(c)
+    print(str)
+}
+
+print("DONE!")
