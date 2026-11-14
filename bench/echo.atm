@@ -1,0 +1,38 @@
+;; Many connections: N clients, each sends K lines to an echo server in
+;; the same program and reads each echo. Shows the time, in milliseconds.
+;;
+;;      ./atmos-uv bench/echo.atm <N> <K>
+
+val N = tonumber(...) || 100
+val K = tonumber((func (_, k) { k })(...)) || 100
+
+task Echo (s) {
+    loop {
+        val line = await uv.stream.line(s)
+        until line == nil
+        await uv.stream.write(s, line ++ "\n")
+    }
+}
+
+pin srv = uv.tcp.listen("127.0.0.1", 0, 1024)
+val ip, port = uv.tcp.addr(srv)
+spawn uv.tcp.serve(srv, Echo)
+
+task Client (id) {
+    pin c = await uv.tcp.connect(ip, port)
+    loop i in K {
+        await uv.stream.write(c, "line " ++ i ++ " of " ++ id ++ "\n")
+        val line = await uv.stream.line(c)
+        assert(line != nil)
+    }
+}
+
+val t0 = uv.now()
+`uv_update_time(UVA_LOOP);`
+pin cs = tasks()
+loop id in N {
+    spawn @cs Client(id)
+}
+await :all cs
+`uv_update_time(UVA_LOOP);`
+print(N, K, uv.now() - t0)
