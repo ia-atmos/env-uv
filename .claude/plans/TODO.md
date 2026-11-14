@@ -17,16 +17,15 @@ The working plan is `.claude/plans/261113-env-uv.md`.
 
 ## B. Work known and not done
 
-- U5: `doc/api.md`, `doc/guide.md`, the comparison with Céu; the
-  documents and the readme use `atmos-uv`.
-- U6: to decide with the author: UDP, processes, an application, a GUI.
-- A benchmark of many connections, before and after `atm_emit_to`
-  (promised to the compiler session).
+- U6: to decide with the author: UDP, processes, pipes, signals, an
+  application (a small HTTP server), the composition with a GUI.
 - Talk to the session `iup` (`ia-atmos/env-iup`) about two loops in one
-  program: `uva_step` is ready for it.
-- To the compiler session, not sent yet: the trace of an error raised in
-  an awaited task does not show the line of the `await`; an uncaught
-  table shows as `table: 0x...`.
+  program: `uva_step` is ready for it, and not tested with another loop.
+- Not tested: IPv6 (the container has none), the Mac, Windows.
+- A limit for the buffer of a stream (a line with no end grows forever).
+- The trace of an error raised in an awaited task does not show the line
+  of the `await` (sent to the compiler session, which put it to the
+  author).
 
 ## C. Reported and not acknowledged
 
