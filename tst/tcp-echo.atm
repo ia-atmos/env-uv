@@ -1,8 +1,6 @@
 ;; The echo server and its client in one program, on the loopback.
 ;; The server echoes lines; a client that closes ends its task.
 
-include "../uv.atm"
-
 task Client (s) {
     defer {
         print("server: client closed")

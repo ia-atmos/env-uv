@@ -3,8 +3,6 @@
 ;; Test: the files are in build/, the source is written here, and the
 ;; copy is compared in the program (the original compares in Lua).
 
-include "../uv.atm"
-
 val src = "../build/tst/fs-10-src.txt"
 val dst = "../build/tst/fs-10-dst.txt"
 do {

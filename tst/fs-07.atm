@@ -2,8 +2,6 @@
 ;; Reads a file line by line.
 ;; Test: shows the first and the last lines, not the 10000.
 
-include "../uv.atm"
-
 val f = await uv.fs.open("fs-01.txt")
 val i = loop i {
     val line = await uv.fs.line(f)

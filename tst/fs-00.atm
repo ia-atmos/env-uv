@@ -2,8 +2,6 @@
 ;; A file that does not exist: the error is not caught, and the program
 ;; terminates with it.
 
-include "../uv.atm"
-
 print("(should generate uncaught exception)")
 val f = await uv.fs.open("/non/existent/path")
 print("open ok")

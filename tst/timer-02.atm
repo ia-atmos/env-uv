@@ -1,8 +1,6 @@
 ;; ceu-libuv: samples/timer-02.ceu (times divided by 10; the original
 ;; sleeps in a thread between the timers, which is out of this environment)
 
-include "../uv.atm"
-
 print(">>> 500ms")
 watching 500ms {
     loop {

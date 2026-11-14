@@ -5,8 +5,6 @@
 ;; Test: port 0, 100ms (the original: 10s), and a client for each server,
 ;; which sends two lines in three pieces.
 
-include "../uv.atm"
-
 val srv0 = uv.tcp.listen("127.0.0.1", 0)
 val srv1 = uv.tcp.listen("127.0.0.1", 0)
 val _, PORT0 = uv.tcp.addr(srv0)

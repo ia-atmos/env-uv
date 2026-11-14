@@ -5,8 +5,6 @@
 ;; Test: port 0, 3 messages at each 10ms (the original: 10, at each 1s),
 ;; and the echo server in the program (the original: `nc`).
 
-include "../uv.atm"
-
 task Echo (s) {
     loop {
         val buf = await uv.stream.read(s)

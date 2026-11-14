@@ -2,8 +2,6 @@
 ;; Reads a file in pieces of 10 bytes.
 ;; Test: joins the pieces and checks the whole, not shown.
 
-include "../uv.atm"
-
 val f = await uv.fs.open("fs-01.txt")
 var all = ""
 var n = 0

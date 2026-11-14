@@ -1,6 +1,4 @@
 ;; An error terminates the loop, with exit code 1.
 
-include "../uv.atm"
-
 await 10ms
 throw :X

@@ -3,8 +3,6 @@
 ;; differ in Céu (an exception against `UV_FS_Open_Try`); here an error
 ;; is always a throw.
 
-include "../uv.atm"
-
 print("(should generate error ENOENT)")
 val ok, e = catch :uv.error {
     val f = await uv.fs.open("/non/existent/path")

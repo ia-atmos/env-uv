@@ -3,8 +3,6 @@
 ;; middle: its two clients terminate.
 ;; Test: port 0; 100ms, 50ms, and 10ms (the original: 10s, 5s, and 1s).
 
-include "../uv.atm"
-
 task Handler (s) {
     loop {
         val buf = await uv.stream.read(s)

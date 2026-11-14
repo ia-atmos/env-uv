@@ -1,4 +1,5 @@
 ;; The program ends when nothing can awake it, and its blocks finalize.
+;; This test keeps the `include`, which also works with `atmos-uv`.
 
 include "../uv.atm"
 

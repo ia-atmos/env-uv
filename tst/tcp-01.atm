@@ -4,8 +4,6 @@
 ;; Test: port 0, and two clients in the program, which connect together:
 ;; the second only gets its echo after the first closes.
 
-include "../uv.atm"
-
 val srv = uv.tcp.listen("127.0.0.1", 0)
 val ip, port = uv.tcp.addr(srv)
 

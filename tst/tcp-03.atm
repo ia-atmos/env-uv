@@ -2,8 +2,6 @@
 ;; Two parallel "echo" servers, each with its pool of clients.
 ;; Test: port 0, 100ms (the original: 10s), and a client for each server.
 
-include "../uv.atm"
-
 task Client (client) {
     loop {
         val buf = await uv.stream.read(client)

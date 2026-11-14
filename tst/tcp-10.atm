@@ -3,8 +3,6 @@
 ;; terminates.
 ;; Test: as tcp-09, and the client reads lines and checks each one.
 
-include "../uv.atm"
-
 task Client (client) {
     loop {
         val line = await uv.stream.line(client)

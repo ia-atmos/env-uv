@@ -1,7 +1,5 @@
 ;; Names: the addresses of a name, and a connection by name.
 
-include "../uv.atm"
-
 val ips = await uv.dns.lookup("localhost")
 print(type(ips), #ips > 0, X.xin("127.0.0.1", ips) || X.xin("::1", ips))
 

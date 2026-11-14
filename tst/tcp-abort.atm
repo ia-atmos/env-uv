@@ -1,8 +1,6 @@
 ;; Aborting a task in the middle of an operation closes its handles and
 ;; leaves nothing behind (the address sanitizer checks the memory).
 
-include "../uv.atm"
-
 val srv = uv.tcp.listen("127.0.0.1", 0)
 val ip, port = uv.tcp.addr(srv)
 

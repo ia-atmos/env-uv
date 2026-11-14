@@ -5,8 +5,6 @@
 ;; `cat samples/fs-01.txt | nc localhost 7000`), which sends the numbers
 ;; from 1 to 10000, one per line, and checks what comes back.
 
-include "../uv.atm"
-
 task Client (client) {
     loop {
         val buf = await uv.stream.read(client)

@@ -3,8 +3,6 @@
 ;; Test: the file goes to build/, and is read back in the program (the
 ;; original compares it with `fs-03.txt.orig` in Lua).
 
-include "../uv.atm"
-
 val path = "../build/tst/fs-03.txt"
 val abc  = "abcdefghijklmnopqrstuvwxyz\n"
 

@@ -1,7 +1,5 @@
 ;; Errors are throws with the name that libuv gives.
 
-include "../uv.atm"
-
 ;; a port with no server
 val port = do {
     val srv = uv.tcp.listen("127.0.0.1", 0)

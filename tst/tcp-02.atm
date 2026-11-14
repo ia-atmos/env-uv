@@ -4,8 +4,6 @@
 ;; program, which are served at the same time. The order among the
 ;; clients is not fixed: each one logs its echoes, shown at the end.
 
-include "../uv.atm"
-
 task Client (client) {
     loop {
         val buf = await uv.stream.read(client)

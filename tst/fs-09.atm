@@ -2,8 +2,6 @@
 ;; Writes a line to a file.
 ;; Test: the file goes to build/ (the original: /tmp/hello.txt).
 
-include "../uv.atm"
-
 val f = await uv.fs.open("../build/tst/hello.txt", "w")
 val str = "Hello World!\n"
 val n = await uv.fs.write(f, str)

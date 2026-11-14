@@ -2,8 +2,6 @@
 ;; behind: a request that already runs in a thread ends before its file
 ;; closes (the address sanitizer checks the memory).
 
-include "../uv.atm"
-
 ;; open
 do {
     pin t = spawn {
