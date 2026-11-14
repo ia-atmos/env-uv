@@ -231,7 +231,7 @@ typedef struct {
         uv_fs_t      fs;
     } u;
     struct ATask* waiter;
-    int     done;
+    int     done;           // 1, or 2 during its callback
     int     gone;
     int     cancel;         // the request can be cancelled
     int64_t res;
@@ -249,20 +249,24 @@ static void uva_req_fin (void* p) {
     r->gone   = 1;
     a_dec(r->val);
     r->val = a_nil();
-    if (r->done) {
+    if (r->done == 1) {
         free(r);
-    } else if (r->cancel) {
+    } else if (r->done==0 && r->cancel) {
         uv_cancel(&r->u.req);
     }
 }
 
+// The callback of the request ran. The awake may release the native value
+// of the request, which is only freed here (`done` is 2 meanwhile).
 static void uva_req_done (uva_req* r, int64_t res) {
     r->res  = res;
+    r->done = 2;
+    if (!r->gone) {
+        uva_wake(&r->waiter);
+    }
     r->done = 1;
     if (r->gone) {
         free(r);
-    } else {
-        uva_wake(&r->waiter);
     }
 }
 
