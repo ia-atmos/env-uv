@@ -1,0 +1,14 @@
+;; ceu-libuv: samples/timer-02.ceu
+;; The original sleeps 1s in a thread between the timers; threads are out
+;; of this environment, and the sleep is a timer here.
+
+print(">>> 5s")
+watching 5s {
+    loop {
+        await 1000ms
+        print("A")
+        await 1s
+        print("B")
+    }
+}
+print("<<< 5s")

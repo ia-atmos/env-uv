@@ -1,0 +1,6 @@
+;; ceu-libuv: samples/timer-01.ceu
+
+loop i in (1, 5) {
+    await 1s
+    print(i ++ "s elapsed...")
+}
