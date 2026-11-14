@@ -1,0 +1,6 @@
+;; ceu-libuv: samples/fs-11.ceu
+
+pin f = await uv.fs.open("fs-01.txt")
+val stat = await uv.fs.stat(f)
+print("size = " ++ stat.size)
+assert(stat.size == 48894)

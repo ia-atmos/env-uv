@@ -1,0 +1,12 @@
+;; ceu-libuv: samples/fs-05.ceu
+;; Writes 20 lines with the alphabet (the original then compares the file
+;; with `fs-03.txt.orig`, in Lua).
+
+do {
+    pin f = await uv.fs.open("/tmp/fs-03.txt", "w")
+    loop in 20 {
+        val n = await uv.fs.write(f, "abcdefghijklmnopqrstuvwxyz\n")
+        assert(n == 27)
+    }
+}
+print("DONE")

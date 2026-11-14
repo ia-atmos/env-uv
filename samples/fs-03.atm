@@ -1,0 +1,10 @@
+;; ceu-libuv: samples/fs-03.ceu and samples/fs-04.ceu
+;; Shows a file, read in pieces. The two samples differ in Céu in the
+;; level (requests and events against `UV_FS_Read_N`); here there is one.
+
+pin f = await uv.fs.open("fs-01.txt")
+loop {
+    val buf = await uv.fs.read(f, 511)
+    until buf == nil
+    io.write(buf)
+}

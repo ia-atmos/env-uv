@@ -1,0 +1,5 @@
+;; ceu-libuv: samples/fs-00.ceu
+
+print("(should generate uncaught exception)")
+pin f = await uv.fs.open("/non/existent/path")
+print("open ok")

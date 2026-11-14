@@ -1,0 +1,8 @@
+;; ceu-libuv: samples/fs-08.ceu
+
+pin f = await uv.fs.open("fs-01.txt")
+loop {
+    val buf = await uv.fs.read(f, 10)
+    until buf == nil
+    io.write(buf)
+}

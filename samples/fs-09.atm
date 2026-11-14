@@ -1,0 +1,9 @@
+;; ceu-libuv: samples/fs-09.ceu
+
+pin f = await uv.fs.open("/tmp/hello.txt", "w")
+val str = "Hello World!\n"
+val n = await uv.fs.write(f, str)
+if n != #str {
+    print("write error")
+}
+print("DONE")

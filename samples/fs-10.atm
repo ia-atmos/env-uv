@@ -1,0 +1,18 @@
+;; ceu-libuv: samples/fs-10.ceu
+;; Copies the file that fs-09 writes, line by line (the original then
+;; compares the two files, in Lua).
+
+var w
+var r
+par :all {
+    set w = await uv.fs.open("/tmp/output.txt", "w")
+} with {
+    set r = await uv.fs.open("/tmp/hello.txt")
+}
+loop {
+    val line = await uv.fs.line(r)
+    until line == nil
+    val n = await uv.fs.write(w, line ++ "\n")
+    assert(n == #line + 1)
+}
+print("DONE")

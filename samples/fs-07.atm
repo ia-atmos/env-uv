@@ -1,0 +1,9 @@
+;; ceu-libuv: samples/fs-07.ceu
+
+pin f = await uv.fs.open("fs-01.txt")
+val n = loop i {
+    val line = await uv.fs.line(f)
+    until line == nil, i
+    print("line = " ++ line ++ " [" ++ #line ++ "]")
+}
+assert(n == 10000)
