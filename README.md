@@ -20,15 +20,26 @@ are the tests of this repository.
 
 ## Using
 
-The environment is the single file `uv.atm`:
+`make` builds `atmos-uv`, the Atmos compiler dedicated to this
+environment, from the compiler in `../lang` (or `make LANG=<dir>`):
+
+```
+make
+./atmos-uv prog.atm
+```
+
+A program is only its code:
+
+```
+pin c = await uv.tcp.connect("localhost", 7000)
+await uv.stream.write(c, "hello\n")
+print((await uv.stream.line(c)))
+```
+
+The plain compiler also works, with the file `uv.atm` included:
 
 ```
 include "uv.atm"
-
-loop i in 5 {
-    await 1s
-    print((i+1) ++ "s elapsed...")
-}
 ```
 
 ```
@@ -41,12 +52,13 @@ Debian and Ubuntu; developed with libuv 1.48).
 ## Testing
 
 ```
-tst/run.sh              # every test against its stored output, with the address sanitizer
+make test               # every test against its stored output, with the address sanitizer
 tst/run.sh timer-01     # some tests only
 ```
 
 The tests use no network outside: clients and servers run in one program,
-on the loopback.
+on the loopback. The tests `timer-*`, `tcp-01` to `tcp-10`, and `fs-00` to
+`fs-11` are the samples of ceu-libuv.
 
 ## State
 
