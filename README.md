@@ -60,8 +60,19 @@ The tests use no network outside: clients and servers run in one program,
 on the loopback. The tests `timer-*`, `tcp-01` to `tcp-10`, and `fs-00` to
 `fs-11` are the samples of ceu-libuv.
 
+## Documents
+
+- [doc/guide.md](doc/guide.md): a tour by examples.
+- [doc/api.md](doc/api.md): the reference.
+- [doc/ceu.md](doc/ceu.md): the samples of ceu-libuv in Céu and in
+  Atmos, and what each language made explicit.
+- [doc/bench.md](doc/bench.md): many connections in one program.
+- [samples/](samples): the samples of ceu-libuv, as in the original.
+- [exs/chat.atm](exs/chat.atm): a chat server.
+
 ## State
 
-In progress: see `.claude/plans/261113-env-uv.md`.
+Timers, TCP (clients and servers), streams, names, and files are done.
+UDP, pipes, processes, signals, and threads are not.
 Only Linux is tested. libuv also runs on the Mac and on Windows, which is
 the reason to choose it, but this environment was not tested there.
