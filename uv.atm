@@ -120,17 +120,11 @@ static AVal uva_error (int r) {
 ///////////////////////////////////////////////////////////////////////////////
 
 // A task that waits for a callback registers itself (`a_cur`) in the handle
-// or request, and awaits the event `:uv` with a predicate that only accepts
-// its own awake (`UVA_WAKE`). The task removes itself when it terminates or
-// aborts.
-//
-// The event is a broadcast, since an exit of the task that awakes (an error)
-// must reach the tasks that await it, which an emit to the task alone would
-// not do.
+// or request, and awaits an event that the callback emits to that task
+// only (`atm_emit_to`): `:read`, `:accept`, or `:done`. The task removes
+// itself when it terminates or aborts.
 
-static struct ATask* UVA_WAKE = NULL;
-
-static void uva_wake (struct ATask** w) {
+static void uva_wake (struct ATask** w, const char* evt) {
     if (*w==NULL || UVA_QUIT) {
         return;
     }
@@ -138,10 +132,8 @@ static void uva_wake (struct ATask** w) {
     if (*w==NULL || UVA_ST!=A_OK) {
         return;
     }
-    AVal tag = a_strz("uv");
-    UVA_WAKE = *w;
-    UVA_ST = atm_emit(tag);
-    UVA_WAKE = NULL;
+    AVal tag = a_strz(evt);
+    UVA_ST = atm_emit_to(a_obj(&(*w)->node.hdr), tag);
     a_dec(tag);
 }
 
@@ -262,7 +254,7 @@ static void uva_req_done (uva_req* r, int64_t res) {
     r->res  = res;
     r->done = 2;
     if (!r->gone) {
-        uva_wake(&r->waiter);
+        uva_wake(&r->waiter, "done");
     }
     r->done = 1;
     if (r->gone) {
@@ -366,7 +358,7 @@ static void uva_read_cb (uv_stream_t* h, ssize_t n, const uv_buf_t* buf) {
     } else {
         return;
     }
-    uva_wake(&s->waiter);
+    uva_wake(&s->waiter, "read");
 }
 
 static int uva_read_start (AStatus* st, AVal v) {
@@ -527,7 +519,7 @@ static void uva_listen_cb (uv_stream_t* h, int status) {
     } else {
         s->pending++;
     }
-    uva_wake(&s->waiter);
+    uva_wake(&s->waiter, "accept");
 }
 
 static int uva_tcp_listen (AStatus* st, AVal v, AVal ip, AVal port, AVal backlog) {
@@ -904,7 +896,7 @@ func uv_chk (r) {
 task uv_req (r) {
     if !`:boolean ((uva_req*)a_nat_ptr($r))->done` {
         `((uva_req*)a_nat_ptr($r))->waiter = a_cur;`
-        await :uv until `:boolean UVA_WAKE == a_cur`
+        await :done
     }
     uv_chk(`:number ((uva_req*)a_nat_ptr($r))->res`)
 }
@@ -920,7 +912,7 @@ task uv_stream_take (s, mode, n) {
             break v
         }
         uv_chk(`:number uva_read_start(&st, $s)`)
-        await :uv until `:boolean UVA_WAKE == a_cur`
+        await :read
     }
 }
 
@@ -958,7 +950,7 @@ task uv_tcp_accept (srv) {
         if c != false {
             break c
         }
-        await :uv until `:boolean UVA_WAKE == a_cur`
+        await :accept
     }
 }
 
