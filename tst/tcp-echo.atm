@@ -19,8 +19,7 @@ print(ip, port > 0)
 pin cs = tasks()
 spawn {
     loop {
-        val s = await uv.tcp.accept(srv)
-        spawn @cs Client(s)
+        spawn @cs Client(await uv.tcp.accept(srv))
     }
 }
 

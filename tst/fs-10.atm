@@ -22,17 +22,16 @@ task All (path) {
 }
 
 do {
-    var w
-    var r
+    pin fs = []
     par :all {
-        set w = await uv.fs.open(dst, "w")
+        set fs.w = await uv.fs.open(dst, "w")
     } with {
-        set r = await uv.fs.open(src)
+        set fs.r = await uv.fs.open(src)
     }
     loop {
-        val line = await uv.fs.line(r)
+        val line = await uv.fs.line(fs.r)
         until line == nil
-        val n = await uv.fs.write(w, line ++ "\n")
+        val n = await uv.fs.write(fs.w, line ++ "\n")
         assert(n == #line + 1)
     }
 }

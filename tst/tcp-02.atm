@@ -16,7 +16,7 @@ task Client (client) {
 pin srv = uv.tcp.listen("127.0.0.1", 0)
 val ip, port = uv.tcp.addr(srv)
 
-val log = [[], [], []]
+pin log = [[], [], []]
 task Test (id) {
     pin c = await uv.tcp.connect(ip, port)
     loop i in 2 {
@@ -35,8 +35,7 @@ print("I will terminate after 100ms...")
 pin cs = tasks(10)
 watching 100ms {
     loop {
-        val client = await uv.tcp.accept(srv)
-        spawn @cs Client(client)
+        spawn @cs Client(await uv.tcp.accept(srv))
     }
 }
 

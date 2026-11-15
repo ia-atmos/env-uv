@@ -81,7 +81,7 @@ do {
             await uv.stream.read(c)
         }) ()
     }
-    val ss = []
+    pin ss = []
     loop in 3 {
         set ss@+ = await uv.tcp.accept(srv)
     }

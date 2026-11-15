@@ -6,13 +6,13 @@ val port = do {
     val _, p = uv.tcp.addr(srv)
     p
 }
-val ok1, e1 = catch :uv.error {
+pin ok1, e1 = catch :uv.error {
     await uv.tcp.connect("127.0.0.1", port)
 }
 print(ok1, e1.tag, e1.name, e1.msg)
 
 ;; an invalid address
-val ok2, e2 = catch :uv.error.EINVAL {
+pin ok2, e2 = catch :uv.error.EINVAL {
     uv.tcp.listen("not an ip", 80)
 }
 print(ok2, e2.name)
@@ -20,7 +20,7 @@ print(ok2, e2.name)
 ;; a port in use
 pin srv = uv.tcp.listen("127.0.0.1", 0)
 val _, p = uv.tcp.addr(srv)
-val ok3, e3 = catch :uv.error {
+pin ok3, e3 = catch :uv.error {
     uv.tcp.listen("127.0.0.1", p)
 }
 print(ok3, e3.name)

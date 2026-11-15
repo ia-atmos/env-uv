@@ -11,7 +11,7 @@ do {
 }
 
 pin f = await uv.fs.open(path)
-val stat = await uv.fs.stat(f)
+pin stat = await uv.fs.stat(f)
 assert(stat.size == 540)
 uv.fs.seek(f, stat.size - 10)
 val buf = await uv.fs.read(f, 10)
