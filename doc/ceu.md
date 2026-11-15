@@ -16,9 +16,9 @@ Lines of code, with no blank lines and no comments, of each sample.
 | timer-01 | five timers in sequence | 8 | 4 |
 | timer-02 | timers under a `watching` (and a thread in Céu) | 15 | 10 |
 | tcp-01 | sequential echo server, raw events | 92 | 15 |
-| tcp-02 | parallel echo server, a pool of clients | 31 | 18 |
-| tcp-03 | two echo servers | 37 | 21 |
-| tcp-04 | two servers, by piece and by line | 65 | 38 |
+| tcp-02 | parallel echo server, a pool of clients | 31 | 17 |
+| tcp-03 | two echo servers | 37 | 20 |
+| tcp-04 | two servers, by piece and by line | 65 | 37 |
 | tcp-05 | echo client, raw connect | 25 | 8 |
 | tcp-06 | echo client, `UV_TCP_Connect` | 15 | (tcp-05) |
 | tcp-07 | client and server in one program | 29 | 19 |
@@ -35,9 +35,9 @@ Lines of code, with no blank lines and no comments, of each sample.
 | fs-07 | read by line | 19 | 7 |
 | fs-08 | read in small pieces | 13 | 6 |
 | fs-09 | write a line | 14 | 7 |
-| fs-10 | copy by line, two files open in parallel | 27 | 14 |
+| fs-10 | copy by line, two files open in parallel | 27 | 13 |
 | fs-11 | size | 8 | 4 |
-| **Total** | 24 samples in Céu, 21 in Atmos | **627** | **268** |
+| **Total** | 24 samples in Céu, 21 in Atmos | **627** | **264** |
 
 The samples not ported are `async-01` and `threads-01`: threads are out of
 this environment.
@@ -46,7 +46,7 @@ The bindings themselves:
 
 | | Céu | Atmos |
 |--|----:|------:|
-| Code in the language | 872 (`uv`, `stream`, `tcp`, `tcp-server`, `fs`) | 188 |
+| Code in the language | 872 (`uv`, `stream`, `tcp`, `tcp-server`, `fs`) | 190 |
 | Code in C | inside the above, in `native` blocks | 870 |
 
 The two are not the same work in different places: ceu-libuv keeps the
@@ -116,20 +116,18 @@ an activity (something is running while the connection exists); Atmos
 makes explicit that it is a value, which can be returned, stored, and
 passed to a task.
 
-That freedom has a cost that Céu does not have. A stream that goes to a
-task of a pool cannot be pinned where it is accepted, since it must
-outlive that block, and so it lives by its references:
+A stream that goes to a task of a pool cannot be pinned where it is
+accepted, since it must outlive that block. It goes straight from the
+accept to the task, which owns it:
 
 ```
-val s = await uv.tcp.accept(srv)        ;; not `pin`
-spawn @cs Client(s)
+spawn @cs Client(await uv.tcp.accept(srv))
 ```
 
 In Céu, the client task accepts its own connection
 (`spawn Client(&server.stream) in cs`), and the stream never crosses a
-block. A test here shows the difference in practice: a connection kept in
-a `val` of the main chunk stayed open after its handler ended, and the
-other side never read the end (`tst/tcp-09.atm` closes it with a block).
+block. Here it crosses one, as a value with no owner yet, and the rules
+of the language say who may take it.
 
 ### The end of a stream
 

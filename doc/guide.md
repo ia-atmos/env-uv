@@ -84,14 +84,13 @@ task Client (s) {
 pin srv = uv.tcp.listen("0.0.0.0", 7000)
 pin cs  = tasks()
 loop {
-    val s = await uv.tcp.accept(srv)
-    spawn @cs Client(s)
+    spawn @cs Client(await uv.tcp.accept(srv))
 }
 ```
 
-- The connection is held with `val`, not `pin`: it goes to a task of the
-  pool, which lives outside the body of the loop. It belongs to that task,
-  and closes when the task ends.
+- The connection goes straight from the accept to its task, which owns
+  it: it closes when the task ends. A connection pinned in the body of
+  the loop could not go to a task of the pool, which lives outside.
 - `tasks(100)` limits the server to 100 clients at a time: a `spawn` into
   a full pool evaluates to `nil`, and the connection closes.
 - Aborting the block of `srv` and `cs` stops the server and closes every
@@ -129,8 +128,7 @@ task Client (s, id) {
 pin srv = uv.tcp.listen("0.0.0.0", 7000)
 pin cs  = tasks()
 loop id {
-    val s = await uv.tcp.accept(srv)
-    spawn @cs Client(s, id)
+    spawn @cs Client(await uv.tcp.accept(srv), id)
 }
 ```
 
@@ -159,7 +157,7 @@ An error of libuv is a throw with its name, and the end of a stream or of
 a file is the value `nil`:
 
 ```
-val ok, e = catch :uv.error {
+pin ok, e = catch :uv.error {
     pin f = await uv.fs.open("/non/existent/path")
     ...
 }
