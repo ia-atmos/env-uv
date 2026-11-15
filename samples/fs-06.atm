@@ -2,7 +2,7 @@
 ;; The last 10 bytes of the file that fs-05 writes.
 
 pin f = await uv.fs.open("/tmp/fs-03.txt")
-val stat = await uv.fs.stat(f)
+pin stat = await uv.fs.stat(f)
 assert(stat.size == 540)
 uv.fs.seek(f, stat.size - 10)
 val buf = await uv.fs.read(f, 10)

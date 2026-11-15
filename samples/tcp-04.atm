@@ -34,8 +34,7 @@ task Server (ip, port) {
     pin server = uv.tcp.listen(ip, port)
     pin cs = tasks(10)
     loop {
-        val client = await uv.tcp.accept(server)
-        spawn @cs Client(client)
+        spawn @cs Client(await uv.tcp.accept(server))
     }
 }
 
