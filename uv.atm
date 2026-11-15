@@ -933,7 +933,7 @@ task uv_stream_shutdown (s) {
 }
 
 func uv_tcp_listen (ip, port, backlog) {
-    val s = `:value uva_tcp_new()`
+    pin s = `:value uva_tcp_new()`
     uv_chk(`:number uva_tcp_listen(&st, $s, $ip, $port, $backlog)`)
     s
 }
@@ -944,7 +944,7 @@ task uv_tcp_accept (srv) {
         `uva_stream_unwait($srv, 0);`
     }
     loop {
-        val c = uv_chk(`:value uva_tcp_accept(&st, $srv)`)
+        pin c = uv_chk(`:value uva_tcp_accept(&st, $srv)`)
         if c != false {
             break c
         }
@@ -959,7 +959,7 @@ task uv_dns_lookup (name) {
 }
 
 task uv_tcp_connect_ip (ip, port) {
-    val s = `:value uva_tcp_new()`
+    pin s = `:value uva_tcp_new()`
     pin r = `:value uva_tcp_connect(&st, $s, $ip, $port)`
     await uv_req(r)
     s
@@ -970,18 +970,22 @@ task uv_tcp_connect (host, port) {
     if (type(host) != :string) || `:boolean uva_is_ip($host)` {
         return await uv_tcp_connect_ip(host, port)
     }
-    val ips = await uv_dns_lookup(host)
-    var err = nil
-    loop _,ip in ips {
-        val ok, s = catch :uv.error {
+    pin ips = await uv_dns_lookup(host)
+    if #ips == 0 {
+        throw `:value uva_error(UV_EAI_NONAME)`
+    }
+    loop i,ip in ips {
+        if i == #ips-1 {
+            ;; the last address: its error is the error of the connect
+            return await uv_tcp_connect_ip(ip, port)
+        }
+        pin ok, s = catch :uv.error {
             await uv_tcp_connect_ip(ip, port)
         }
         if ok {
             return s
         }
-        set err = s
     }
-    throw (err || `:value uva_error(UV_EAI_NONAME)`)
 }
 
 task uv_fs_open (path, mode, perm) {
@@ -1034,8 +1038,10 @@ task uv_fs_unlink (path) {
     await uv_req(r)
 }
 
-;; An error of libuv in a client only terminates that client.
-task uv_tcp_client (handler, s, ...) {
+;; An error of libuv in a client only terminates that client, which owns
+;; its connection.
+task uv_tcp_client (handler, s0, ...) {
+    pin s = s0
     catch :uv.error {
         await handler(s, ...)
     }
@@ -1044,12 +1050,11 @@ task uv_tcp_client (handler, s, ...) {
 task uv_tcp_serve (srv, handler, ...) {
     pin cs = tasks()
     loop {
-        val s = await uv_tcp_accept(srv)
-        spawn @cs uv_tcp_client(handler, s, ...)
+        spawn @cs uv_tcp_client(handler, await uv_tcp_accept(srv), ...)
     }
 }
 
-val uv = [
+pin uv = [
     ;; uv.now(): the time of the loop, in milliseconds
     now = func () {
         `:number uv_now(UVA_LOOP)`
@@ -1135,13 +1140,13 @@ val uv = [
 
         ;; uv.tcp.addr(s): the ip and the port of the stream
         addr = func (s) {
-            val t = uv_chk(`:value uva_tcp_name(&st, $s, 0)`)
+            pin t = uv_chk(`:value uva_tcp_name(&st, $s, 0)`)
             return t@0, t@1
         },
 
         ;; uv.tcp.peer(s): the ip and the port of the other side
         peer = func (s) {
-            val t = uv_chk(`:value uva_tcp_name(&st, $s, 1)`)
+            pin t = uv_chk(`:value uva_tcp_name(&st, $s, 1)`)
             return t@0, t@1
         },
     ],
