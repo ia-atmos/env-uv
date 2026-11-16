@@ -9,18 +9,21 @@ The working plan is `.claude/plans/261113-env-uv.md`.
 
 - The local remote still points to `fsantanna/uv` (it redirects): the
   session's permission mode refused the change to `ia-atmos/env-uv`.
-- The events have no prefix, as decided for all environments (`:read`,
-  `:accept`, `:done`), and are internal: each goes to one task. The
-  errors are still `:uv.error.<NAME>`: keep the prefix in an exception?
-- The events have no field `h` (the handle): they reach only the task
-  that waits. Is that fine, or should the program see `:read [h=s]`?
+- The events are `:read [h=s]`, `:accept [h=srv]`, `:done [h=r]`, as he
+  asked on 2026-11-16 ("como no iup"). They still go to the one task
+  that waits (`atm_emit_to`), and the program awaits the operations, not
+  the events. Should they be broadcasts, so that a program may write
+  `await :read [h=s]` itself? The broadcast was 20 times slower with
+  1000 connections. The field `h` alone costs about 1.7 times in
+  `bench/echo.atm` (a table per event and per await).
 
 ## B. Work known and not done
 
-- U6: to decide with the author: UDP, processes, pipes, signals, an
-  application (a small HTTP server), the composition with a GUI.
-- Talk to the session `iup` (`ia-atmos/env-iup`) about two loops in one
-  program: `uva_step` is ready for it, and not tested with another loop.
+- U6, decided by the author on 2026-11-16: the composition with
+  `env-iup`. This side: a hosted mode (`UVA_NO_MAIN`, `uva_poll`,
+  `uva_close`), a test with a host loop written in the test, then the
+  agreement with the session `iup` on who calls what.
+- Later: UDP, processes, pipes, signals, a small HTTP server.
 - Not tested: IPv6 (the container has none), the Mac, Windows.
 - A limit for the buffer of a stream (a line with no end grows forever).
 - The trace of an error raised in an awaited task does not show the line
