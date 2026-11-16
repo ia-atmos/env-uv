@@ -12,6 +12,7 @@ atmos-uv: uv.atm $(LANG)/atmos
 
 test: atmos-uv
 	tst/run.sh
+	tst/pair/run.sh
 
 clean:
 	rm -rf atmos-uv build
