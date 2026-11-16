@@ -216,19 +216,28 @@ other tasks execute while a file is read.
 
 ## From C
 
-`uv.atm` defines `main`, which is the following loop:
+Alone, `uv.atm` defines `main`: it runs the loop of libuv, and gives the
+time of the loop to the program.
 
-```
-uva_init(argc, argv);       // starts the loop and the program
-while (uva_step(1)) {       // one step: waits and delivers
-}
-return uva_quit();          // terminates the program and the loop
-```
+**Hosted**, another environment (a GUI) owns `main`, its own loop, and
+the time, and drives this one. The program is compiled with
+`-DUVA_NO_MAIN`, and the host calls:
 
-Another environment, such as a GUI, may own `main` and drive this one:
-it compiles with `-DUVA_NO_MAIN` and calls `uva_step(0)`, which does not
-wait, from its own loop. `uva_step` returns `0` when the program is over,
-or when nothing of libuv can awake it.
+| Function | When |
+|----------|------|
+| `AStatus uva_poll (void)` | from its loop, as often as it can: delivers what libuv has ready, with no wait. The result is the status of the program, as that of `atm_emit`. |
+| `int uva_pending (void)` | to know if something of libuv may still awake the program (an active handle, a request in course) |
+| `void uva_close (void)` | at the end, after `atm_quit`: runs the closes of the handles and closes the loop |
+
+The loop of libuv starts by itself, at its first use.
+The host gives the time (`atm_emit` of microseconds): in this mode, this
+environment emits none, and `uv.now()` is still the clock of libuv.
+The test `tst/host-01.atm` has a host in 30 lines.
+
+The events that the callbacks emit are `:read [h=s]`, `:accept [h=srv]`,
+and `:done [h=r]`, with the stream, the server, or the request as the
+field `h`. Each goes only to the task that waits for it, inside an
+operation: a program awaits the operations, not the events.
 
 The names of C in `uv.atm` have the prefix `uva_` or `UVA_`.
 `UVA_LOOP` is the loop (`uv_loop_t*`), for native literals of the program
