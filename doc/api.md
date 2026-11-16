@@ -100,11 +100,11 @@ file: another one raises `invalid stream : busy` or `invalid file : busy`.
 An error of libuv is a throw of a table tagged with its name:
 
 ```
-:uv.error.ECONNREFUSED [name="ECONNREFUSED", msg="connection refused"]
+:error.ECONNREFUSED [name="ECONNREFUSED", msg="connection refused"]
 ```
 
 ```
-pin ok, e = catch :uv.error {               ;; any error of libuv
+pin ok, e = catch :error {               ;; any error of libuv
     pin c = await uv.tcp.connect("127.0.0.1", 7000)
     ...
 }
@@ -113,7 +113,7 @@ if !ok {
 }
 ```
 
-`catch :uv.error.ECONNREFUSED {...}` catches a single error.
+`catch :error.ECONNREFUSED {...}` catches a single error.
 The names are those of libuv with no `UV_`: `EOF`, `ENOENT`, `EADDRINUSE`,
 `ECONNRESET`, `EAI_NONAME`, and so on.
 

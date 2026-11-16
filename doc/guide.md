@@ -157,7 +157,7 @@ An error of libuv is a throw with its name, and the end of a stream or of
 a file is the value `nil`:
 
 ```
-pin ok, e = catch :uv.error {
+pin ok, e = catch :error {
     pin f = await uv.fs.open("/non/existent/path")
     ...
 }
@@ -166,7 +166,7 @@ if !ok {
 }
 ```
 
-`catch :uv.error.ENOENT {...}` catches that error only. The blocks in
+`catch :error.ENOENT {...}` catches that error only. The blocks in
 course terminate as usual, so what they pin closes.
 
 ## More
