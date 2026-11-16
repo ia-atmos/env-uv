@@ -19,10 +19,14 @@ The working plan is `.claude/plans/261113-env-uv.md`.
 
 ## B. Work known and not done
 
-- U6, decided by the author on 2026-11-16: the composition with
-  `env-iup`. This side: a hosted mode (`UVA_NO_MAIN`, `uva_poll`,
-  `uva_close`), a test with a host loop written in the test, then the
-  agreement with the session `iup` on who calls what.
+- U6 (the composition with `env-iup`, decided by the author on
+  2026-11-16): done for the pair. `uv.atm` has a hosted mode
+  (`UVA_NO_MAIN`, `uva_poll`, `uva_close`), `iup.atm` polls it at each
+  tick through weak symbols, and `tst/pair/iup-echo.atm` runs the two
+  under Xvfb. Open: the latency is the tick of IUP (10ms); the general
+  answer (a registry of pollers in the runtime, for any pair) is to ask
+  the compiler session and the author; a dedicated compiler for the
+  pair; a section in `doc/guide.md`.
 - Later: UDP, processes, pipes, signals, a small HTTP server.
 - Not tested: IPv6 (the container has none), the Mac, Windows.
 - A limit for the buffer of a stream (a line with no end grows forever).
