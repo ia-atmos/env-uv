@@ -17,7 +17,7 @@ task Server (ip, port) {
 }
 
 task Client (port) {
-    catch :uv.error {
+    catch :error {
         pin c = await uv.tcp.connect("127.0.0.1", port)
         loop {
             await 1s
