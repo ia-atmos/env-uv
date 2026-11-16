@@ -4,10 +4,10 @@ pin ips = await uv.dns.lookup("localhost")
 print(type(ips), #ips > 0, X.xin("127.0.0.1", ips) || X.xin("::1", ips))
 
 ;; a name that does not exist
-pin ok, e = catch :uv.error {
+pin ok, e = catch :error {
     await uv.dns.lookup("no.such.name.invalid")
 }
-print(ok, e ?? :uv.error)
+print(ok, e ?? :error)
 
 ;; a lookup that is aborted
 watching 0ms {

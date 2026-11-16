@@ -1,4 +1,4 @@
-false	uv.error.ECONNREFUSED	ECONNREFUSED	connection refused
+false	error.ECONNREFUSED	ECONNREFUSED	connection refused
 false	EINVAL
 false	EADDRINUSE
 false	invalid stream : closed
