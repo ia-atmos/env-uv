@@ -31,7 +31,12 @@ fi
 
 TESTS=${*:-$(ls tst/*.atm | xargs -n1 basename | sed 's/\.atm$//')}
 for t in $TESTS; do
-    if ! "$ATMOS" -o "$OUT/$t" "tst/$t.atm" 2> "$OUT/$t.err"; then
+    # a hosted test has its own `main`: the plain compiler and the include
+    case $t in
+        host-*) CC1="${LANG:-../lang}/atmos"; F1="-DUVA_NO_MAIN"; L1="-luv" ;;
+        *)      CC1="$ATMOS"; F1=; L1= ;;
+    esac
+    if ! ATMOS_CFLAGS="$F1" ATMOS_LDFLAGS="$L1" "$CC1" -o "$OUT/$t" "tst/$t.atm" 2> "$OUT/$t.err"; then
         echo "FAIL $t (build)"; cat "$OUT/$t.err"; FAIL=1; continue
     fi
     (cd tst && timeout 20 "../$OUT/$t"; echo "exit $?") 2>&1 | sed 's/0x[0-9a-f]*/0x?/g; s|[^ ]*uv.atm:[0-9]*|uv.atm:?|g' > "$OUT/$t.out"
