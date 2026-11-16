@@ -1,0 +1,7 @@
+connected
+answer	echo: hello
+lbl.TITLE = echo: hello
+answer	echo: again
+lbl.TITLE = echo: again
+closed
+exit 0

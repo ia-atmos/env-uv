@@ -1,0 +1,47 @@
+;; The pair: a GUI of IUP and the network of libuv in one program.
+;; A button sends the text of a field to an echo server in the same
+;; program, and a label shows the answer. `env-iup` owns `main` and the
+;; time, and polls libuv at each tick.
+;;
+;; Built with the plain compiler, `-DUVA_NO_MAIN`, and the two includes
+;; (see tst/pair/run.sh).
+
+include "../../../env-iup/iup.atm"
+include "../../uv.atm"
+
+;; the server
+task Echo (s) {
+    loop {
+        val line = await uv.stream.line(s)
+        until line == nil
+        await uv.stream.write(s, "echo: " ++ line ++ "\n")
+    }
+}
+pin srv = uv.tcp.listen("127.0.0.1", 0)
+val ip, port = uv.tcp.addr(srv)
+spawn uv.tcp.serve(srv, Echo)
+
+;; the dialog
+pin txt = iup.new(:text,   [value="hello", size=80, handlename="txt"])
+pin but = iup.new(:button, [title="Send", handlename="but"])
+pin lbl = iup.new(:label,  [title="(nothing yet)", size=120, handlename="lbl"])
+pin dlg = iup.new(:dialog, [
+    title      = "Echo",
+    margin     = "10x10",
+    handlename = "dlg",
+    iup.new(:vbox, [iup.new(:hbox, [txt, but, ngap=10]), lbl, ngap=10]),
+])
+iup.show(dlg)
+
+;; one connection for the life of the dialog; each click is a round trip
+watching :close [h=dlg] {
+    pin c = await uv.tcp.connect(ip, port)
+    print("connected")
+    loop on :action [h=but] {
+        await uv.stream.write(c, iup.get(txt, "VALUE") ++ "\n")
+        val line = await uv.stream.line(c)
+        iup.set(lbl, "TITLE", line)
+        print("answer", line)
+    }
+}
+print("closed")

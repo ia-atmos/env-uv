@@ -1,0 +1,8 @@
+# the network is real and the time of the script is virtual: a second
+# of it between an action and what depends on the network
+1000:click:but
+2000:get:lbl:TITLE
+2100:set:txt:VALUE=again
+2200:click:but
+3200:get:lbl:TITLE
+3300:close:dlg
