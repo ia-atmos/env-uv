@@ -1,6 +1,9 @@
 ;; A libuv environment for Atmos: the network, files, and timers.
 ;;
-;;      include "uv.atm"
+;;      atmos-uv prog.atm               (the dedicated compiler: `make`)
+;;
+;; or, with the plain compiler and `include "uv.atm"` in the program:
+;;
 ;;      ATMOS_LDFLAGS="-luv" atmos prog.atm
 ;;
 ;; The program runs inside the loop of libuv. Time passes with the clock of
@@ -8,6 +11,9 @@
 ;;
 ;; The program terminates when its main chunk terminates, or when nothing
 ;; can awake it: no timer, and no active handle or request of libuv.
+;;
+;; With `-DUVA_NO_MAIN`, another environment owns `main` and the time, and
+;; calls `uva_poll` from its loop (see doc/api.md, "From C").
 
 ```:prelude
 #include <stdio.h>
@@ -19,59 +25,106 @@
 // DRIVER
 ///////////////////////////////////////////////////////////////////////////////
 
-static uv_loop_t* UVA_LOOP = NULL;
+// The environment runs in one of two ways:
+//  - alone: it defines `main`, runs the loop of libuv, and gives the time
+//    of the loop to the program;
+//  - hosted (compiled with UVA_NO_MAIN): another environment defines `main`,
+//    runs its own loop, and gives the time. It calls `uva_poll` from its
+//    loop, and `uva_close` at the end.
+
+static uv_loop_t* UVA_LOOP_ = NULL;
 static uv_timer_t UVA_CLK;              // awakes the loop for the next timer
 static uint64_t   UVA_NOW  = 0;         // time already given to the program (ms)
 static AStatus    UVA_ST   = A_OK;      // status of the program
 static int        UVA_QUIT = 0;         // the program is over: callbacks only release
 
-// Gives the program the time that passed in the loop.
+// The loop, which starts at its first use.
+static uv_loop_t* uva_loop (void) {
+    if (UVA_LOOP_ == NULL) {
+        UVA_LOOP_ = uv_default_loop();
+        uv_timer_init(UVA_LOOP_, &UVA_CLK);
+        uv_update_time(UVA_LOOP_);
+        UVA_NOW = uv_now(UVA_LOOP_);
+    }
+    return UVA_LOOP_;
+}
+
+#define UVA_LOOP (uva_loop())
+
+// Gives the program the time that passed in the loop. A host gives the
+// time itself.
 static void uva_time (void) {
+#ifndef UVA_NO_MAIN
     uint64_t now = uv_now(UVA_LOOP);
     if (UVA_ST==A_OK && !UVA_QUIT && now>UVA_NOW) {
         uint64_t dt = now - UVA_NOW;
         UVA_NOW = now;
         UVA_ST = atm_emit(a_int((int64_t)dt * 1000));
     }
+#endif
 }
 
 static void uva_clk_cb (uv_timer_t* h) {
     (void) h;
 }
 
-// Starts the loop and the program.
-void uva_init (int argc, char** argv) {
-    UVA_LOOP = uv_default_loop();
-    uv_timer_init(UVA_LOOP, &UVA_CLK);
-    uv_update_time(UVA_LOOP);
-    UVA_NOW = uv_now(UVA_LOOP);
-    atm_init(argc, argv);
-    UVA_ST = atm_main();
+// Something of libuv may still awake the program: an active handle or a
+// request in course.
+int uva_pending (void) {
+    uv_timer_stop(&UVA_CLK);
+    return uv_loop_alive(UVA_LOOP);
 }
 
-// One step of the loop: waits for input or for the next timer (if `block`),
-// and delivers them to the program. Returns 0 when the program is over, or
+// For a host: delivers what libuv has ready, with no wait. Returns the
+// status of the program, which the host takes as that of an emit.
+AStatus uva_poll (void) {
+    if (UVA_ST==A_OK && !UVA_QUIT && atm_alive()) {
+        uv_run(UVA_LOOP, UV_RUN_NOWAIT);
+    }
+    AStatus st = UVA_ST;
+    UVA_ST = A_OK;
+    return st;
+}
+
+// For a host, after `atm_quit`: the handles close in two steps, and the
+// loop runs the callbacks of the closes.
+void uva_close (void) {
+    UVA_QUIT = 1;
+    uv_timer_stop(&UVA_CLK);
+    uv_close((uv_handle_t*)&UVA_CLK, NULL);
+    uv_run(UVA_LOOP, UV_RUN_DEFAULT);
+    uv_loop_close(UVA_LOOP);
+}
+
+#ifndef UVA_NO_MAIN
+
+// One step of the loop: waits for input or for the next timer, and
+// delivers them to the program. Returns 0 when the program is over, or
 // when nothing can awake it.
-int uva_step (int block) {
+static int uva_step (void) {
     if (UVA_ST!=A_OK || !atm_alive()) {
         return 0;
     }
-    uv_timer_stop(&UVA_CLK);
     double us = atm_next();
-    if (us<0 && !uv_loop_alive(UVA_LOOP)) {
+    if (!uva_pending() && us<0) {
         return 0;
     }
     if (us >= 0) {
         uv_timer_start(&UVA_CLK, uva_clk_cb, (uint64_t)((us+999)/1000), 0);
     }
     fflush(stdout);
-    uv_run(UVA_LOOP, block ? UV_RUN_ONCE : UV_RUN_NOWAIT);
+    uv_run(UVA_LOOP, UV_RUN_ONCE);
     uva_time();
     return UVA_ST==A_OK && atm_alive();
 }
 
-// Terminates the program and the loop. Returns the exit code.
-int uva_quit (void) {
+int main (int argc, char** argv) {
+    uva_loop();
+    atm_init(argc, argv);
+    UVA_ST = atm_main();
+    while (uva_step()) {
+    }
+
     AStatus st = UVA_ST;
     if (st == A_OK) {
         st = atm_stop();
@@ -85,14 +138,11 @@ int uva_quit (void) {
     }
     UVA_QUIT = 1;
     atm_quit();
-
-    // the handles close in two steps: runs the callbacks of the closes
-    uv_timer_stop(&UVA_CLK);
-    uv_close((uv_handle_t*)&UVA_CLK, NULL);
-    uv_run(UVA_LOOP, UV_RUN_DEFAULT);
-    uv_loop_close(UVA_LOOP);
+    uva_close();
     return (st == A_OK) ? 0 : 1;
 }
+
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 // ERRORS
@@ -887,15 +937,6 @@ static AVal uva_fs_unlink (AStatus* st, AVal path) {
     return uva_fs_started(ret, r, NULL,
         uv_fs_unlink(UVA_LOOP, &r->u.fs, A_STR_OF(path)->s, uva_fs_cb));
 }
-
-#ifndef UVA_NO_MAIN
-int main (int argc, char** argv) {
-    uva_init(argc, argv);
-    while (uva_step(1)) {
-    }
-    return uva_quit();
-}
-#endif
 ```
 
 ;; Throws the error of a result of libuv, or returns the result.
