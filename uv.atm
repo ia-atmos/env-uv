@@ -1013,7 +1013,7 @@ task uv_tcp_connect (host, port) {
     if (type(host) != :string) || `:boolean uva_is_ip($host)` {
         return await uv_tcp_connect_ip(host, port)
     }
-    pin ips = await uv_dns_lookup(host)
+    val ips = await uv_dns_lookup(host)
     if #ips == 0 {
         throw `:value uva_error(UV_EAI_NONAME)`
     }
@@ -1022,7 +1022,7 @@ task uv_tcp_connect (host, port) {
             ;; the last address: its error is the error of the connect
             return await uv_tcp_connect_ip(ip, port)
         }
-        pin ok, s = catch :error {
+        val ok, s = catch :error {
             await uv_tcp_connect_ip(ip, port)
         }
         if ok {
@@ -1182,13 +1182,13 @@ pin uv = [
 
         ;; uv.tcp.addr(s): the ip and the port of the stream
         addr = func (s) {
-            pin t = uv_chk(`:value uva_tcp_name(&st, $s, 0)`)
+            val t = uv_chk(`:value uva_tcp_name(&st, $s, 0)`)
             return t@0, t@1
         },
 
         ;; uv.tcp.peer(s): the ip and the port of the other side
         peer = func (s) {
-            pin t = uv_chk(`:value uva_tcp_name(&st, $s, 1)`)
+            val t = uv_chk(`:value uva_tcp_name(&st, $s, 1)`)
             return t@0, t@1
         },
     ],
