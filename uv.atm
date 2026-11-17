@@ -976,7 +976,7 @@ task uv_stream_shutdown (s) {
 }
 
 func uv_tcp_listen (ip, port, backlog) {
-    pin s = `:value uva_tcp_new()`
+    val s = `:value uva_tcp_new()`
     uv_chk(`:number uva_tcp_listen(&st, $s, $ip, $port, $backlog)`)
     s
 }
@@ -987,7 +987,7 @@ task uv_tcp_accept (srv) {
         `uva_stream_unwait($srv, 0);`
     }
     loop {
-        pin c = uv_chk(`:value uva_tcp_accept(&st, $srv)`)
+        val c = uv_chk(`:value uva_tcp_accept(&st, $srv)`)
         if c != false {
             break c
         }
@@ -1002,7 +1002,7 @@ task uv_dns_lookup (name) {
 }
 
 task uv_tcp_connect_ip (ip, port) {
-    pin s = `:value uva_tcp_new()`
+    val s = `:value uva_tcp_new()`
     pin r = `:value uva_tcp_connect(&st, $s, $ip, $port)`
     await uv_req(r)
     s
@@ -1083,8 +1083,7 @@ task uv_fs_unlink (path) {
 
 ;; An error of libuv in a client only terminates that client, which owns
 ;; its connection.
-task uv_tcp_client (handler, s0, ...) {
-    pin s = s0
+task uv_tcp_client (handler, pin s, ...) {
     catch :error {
         await handler(s, ...)
     }
