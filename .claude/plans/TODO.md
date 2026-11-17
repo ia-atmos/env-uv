@@ -12,6 +12,17 @@ The working plan is `.claude/plans/261113-env-uv.md`.
 
 ## B. Work known and not done
 
+- Waiting for `atmos.env` in `main` of `ia-atmos/lang` (decision of the
+  author on 2026-11-17, relayed by the session `envs`,
+  session_011eECofYWTNPACTtUjHN4p6; draft: `.claude/plans/261117-envs-atmos.md`
+  of `lang`). Then: `uv.atm` registers itself with
+  `atmos.env [step=, quit=, mode=[primary=true, secondary=true]]`
+  (primary: `uv_run` ONCE, sleeps, emits the time; secondary: NOWAIT, no
+  time); its `main`, `UVA_NO_MAIN`, `uva_poll`, `uva_close` go; keep
+  `atm_emit_to` in the callbacks; redo the pair (`include "iup.atm"`
+  first, no weak symbols) with the session `iup`; say whether the shape
+  is general; report to `envs` and to the author. Later (item 58): a test
+  mode by a global set in a `test` block of `uv.atm`.
 - U6 (the composition with `env-iup`, decided by the author on
   2026-11-16): done for the pair. `uv.atm` has a hosted mode
   (`UVA_NO_MAIN`, `uva_poll`, `uva_close`), `iup.atm` polls it at each
