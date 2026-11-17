@@ -64,7 +64,7 @@ do {
 }
 
 ;; an error of libuv still reaches the program
-pin ok, e = catch :error {
+val ok, e = catch :error {
     await uv.fs.open("/non/existent/path")
 }
 print(ok, e.name)

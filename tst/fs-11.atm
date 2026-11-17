@@ -2,6 +2,6 @@
 ;; The size of a file.
 
 pin f = await uv.fs.open("../samples/fs-01.txt")
-pin stat = await uv.fs.stat(f)
+val stat = await uv.fs.stat(f)
 print("size = " ++ stat.size)
 assert(stat.size == 48894)
