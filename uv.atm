@@ -170,15 +170,13 @@ static AVal uva_error (int r) {
 ///////////////////////////////////////////////////////////////////////////////
 
 // A task that waits for a callback registers itself (`a_cur`) in the handle
-// or request, and awaits an event with that handle or request as the
-// field `h`: `:read [h=s]`, `:accept [h=srv]`, or `:done [h=r]`. The
-// callback emits the event to that task only (`atm_emit_to`). The task
-// removes itself when it terminates or aborts.
-//
-// `nat` is the native value of the handle or request: not a reference,
-// since it is only used while the value is alive.
+// or request, and awaits an event that the callback emits to that task
+// only (`atm_emit_to`): `:read`, `:accept`, or `:done`. Each callback
+// answers a request that one task made, so the event needs no field to
+// tell who it is for, and the program never sees it: it awaits the
+// operations. The task removes itself when it terminates or aborts.
 
-static void uva_wake (struct ATask** w, const char* tag, ANat* nat) {
+static void uva_wake (struct ATask** w, const char* tag) {
     if (*w==NULL || UVA_QUIT) {
         return;
     }
@@ -186,15 +184,9 @@ static void uva_wake (struct ATask** w, const char* tag, ANat* nat) {
     if (*w==NULL || UVA_ST!=A_OK) {
         return;
     }
-    AVal evt = a_tab();
-    AVal t   = a_strz(tag);
-    AVal k   = a_strz("h");
-    a_tag(evt, t);
-    a_tab_field(evt, k, a_obj(&nat->hdr));
-    UVA_ST = atm_emit_to(a_obj(&(*w)->node.hdr), evt);
-    a_dec(k);
+    AVal t = a_strz(tag);
+    UVA_ST = atm_emit_to(a_obj(&(*w)->node.hdr), t);
     a_dec(t);
-    a_dec(evt);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -283,7 +275,6 @@ typedef struct {
         uv_fs_t      fs;
     } u;
     struct ATask* waiter;
-    ANat*   nat;            // its native value, while it is alive
     int     done;           // 1, or 2 during its callback
     int     gone;
     int     cancel;         // the request can be cancelled
@@ -315,7 +306,7 @@ static void uva_req_done (uva_req* r, int64_t res) {
     r->res  = res;
     r->done = 2;
     if (!r->gone) {
-        uva_wake(&r->waiter, "done", r->nat);
+        uva_wake(&r->waiter, "done");
     }
     r->done = 1;
     if (r->gone) {
@@ -327,9 +318,7 @@ static AVal uva_req_new (uva_req** r, size_t extra) {
     *r = calloc(1, sizeof(uva_req) + extra);
     (*r)->waiter = a_cur;
     (*r)->val    = a_nil();
-    AVal v = a_nat(*r, uva_req_fin, UVA_KIND_REQ);
-    (*r)->nat = A_NAT_OF(v);
-    return v;
+    return a_nat(*r, uva_req_fin, UVA_KIND_REQ);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -343,7 +332,6 @@ typedef struct {
         uv_tcp_t    tcp;
     } u;
     struct ATask* waiter;   // task that reads or accepts
-    ANat*  nat;             // its native value, while it is alive
     int    pending;         // server: connections to accept
     int    err;             // the stream is over: UV_EOF or an error
     int    reading;         // between uv_read_start and uv_read_stop
@@ -422,7 +410,7 @@ static void uva_read_cb (uv_stream_t* h, ssize_t n, const uv_buf_t* buf) {
     } else {
         return;
     }
-    uva_wake(&s->waiter, "read", s->nat);
+    uva_wake(&s->waiter, "read");
 }
 
 static int uva_read_start (AStatus* st, AVal v) {
@@ -499,9 +487,7 @@ static AVal uva_shutdown (AStatus* st, AVal v) {
 static AVal uva_tcp_new (void) {
     uva_stream* s = calloc(1, sizeof(uva_stream));
     uv_tcp_init(UVA_LOOP, &s->u.tcp);
-    AVal v = a_nat(s, uva_stream_fin, UVA_KIND_STREAM);
-    s->nat = A_NAT_OF(v);
-    return v;
+    return a_nat(s, uva_stream_fin, UVA_KIND_STREAM);
 }
 
 // An address of IPv4 or IPv6. Returns 0, or an error.
@@ -585,7 +571,7 @@ static void uva_listen_cb (uv_stream_t* h, int status) {
     } else {
         s->pending++;
     }
-    uva_wake(&s->waiter, "accept", s->nat);
+    uva_wake(&s->waiter, "accept");
 }
 
 static int uva_tcp_listen (AStatus* st, AVal v, AVal ip, AVal port, AVal backlog) {
@@ -951,7 +937,7 @@ func uv_chk (r) {
 task uv_req (r) {
     if !`:boolean ((uva_req*)a_nat_ptr($r))->done` {
         `((uva_req*)a_nat_ptr($r))->waiter = a_cur;`
-        await :done [h=r]
+        await :done
     }
     uv_chk(`:number ((uva_req*)a_nat_ptr($r))->res`)
 }
@@ -967,7 +953,7 @@ task uv_stream_take (s, mode, n) {
             break v
         }
         uv_chk(`:number uva_read_start(&st, $s)`)
-        await :read [h=s]
+        await :read
     }
 }
 
@@ -1005,7 +991,7 @@ task uv_tcp_accept (srv) {
         if c != false {
             break c
         }
-        await :accept [h=srv]
+        await :accept
     }
 }
 
