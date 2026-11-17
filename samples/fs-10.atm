@@ -2,16 +2,17 @@
 ;; Copies the file that fs-09 writes, line by line (the original then
 ;; compares the two files, in Lua).
 
-pin fs = []
+pin var w
+pin var r
 par :all {
-    set fs.w = await uv.fs.open("/tmp/output.txt", "w")
+    set w = await uv.fs.open("/tmp/output.txt", "w")
 } with {
-    set fs.r = await uv.fs.open("/tmp/hello.txt")
+    set r = await uv.fs.open("/tmp/hello.txt")
 }
 loop {
-    val line = await uv.fs.line(fs.r)
+    val line = await uv.fs.line(r)
     until line == nil
-    val n = await uv.fs.write(fs.w, line ++ "\n")
+    val n = await uv.fs.write(w, line ++ "\n")
     assert(n == #line + 1)
 }
 print("DONE")

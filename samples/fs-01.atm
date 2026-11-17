@@ -3,7 +3,7 @@
 ;; here an error is always a throw.
 
 print("(should generate error ENOENT)")
-pin ok, e = catch :error {
+val ok, e = catch :error {
     pin f = await uv.fs.open("/non/existent/path")
     print("open ok")
 }
