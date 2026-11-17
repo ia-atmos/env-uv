@@ -1,0 +1,60 @@
+;; uv.atm as a secondary environment: the primary is the one below,
+;; registered before the include, which sleeps 1ms per step and gives the
+;; time. The loop of libuv only delivers what is ready. The program is an
+;; echo server and its client, as in any other test.
+;;
+;; Built with the plain compiler and the include (see tst/run.sh).
+
+```:prelude
+#define _POSIX_C_SOURCE 199309L
+#include <time.h>
+```
+
+var steps = 0
+atmos.env([
+    mode = [primary=true],
+    step = func () {
+        set steps = steps + 1
+        `{ struct timespec ts = { 0, 1000000 }; nanosleep(&ts, NULL); }`
+        `st = atm_emit(a_int(1000));`
+    },
+])
+
+include "../uv.atm"
+
+print(uv_mode.current)
+
+task Echo (s) {
+    loop {
+        val line = await uv.stream.line(s)
+        until line == nil
+        await uv.stream.write(s, line ++ "\n")
+    }
+}
+
+pin srv = uv.tcp.listen("127.0.0.1", 0)
+val ip, port = uv.tcp.addr(srv)
+spawn uv.tcp.serve(srv, Echo)
+
+do {
+    pin c = await uv.tcp.connect(ip, port)
+    loop i in 3 {
+        await 10ms                          ;; a timer of the primary
+        await uv.stream.write(c, "hello " ++ i ++ "\n")
+        print((await uv.stream.line(c)))
+    }
+}
+
+;; an error of libuv still reaches the program
+val ok, e = catch :error {
+    await uv.fs.open("/non/existent/path")
+}
+print(ok, e.name)
+
+;; a task aborted by the time of the primary
+pin srv2 = uv.tcp.listen("127.0.0.1", 0)
+watching 20ms {
+    await uv.tcp.accept(srv2)
+    print("never")
+}
+print("done", steps > 0)
