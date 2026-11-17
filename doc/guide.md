@@ -157,7 +157,7 @@ An error of libuv is a throw with its name, and the end of a stream or of
 a file is the value `nil`:
 
 ```
-pin ok, e = catch :error {
+val ok, e = catch :error {
     pin f = await uv.fs.open("/non/existent/path")
     ...
 }

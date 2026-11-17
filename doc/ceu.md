@@ -35,9 +35,9 @@ Lines of code, with no blank lines and no comments, of each sample.
 | fs-07 | read by line | 19 | 7 |
 | fs-08 | read in small pieces | 13 | 6 |
 | fs-09 | write a line | 14 | 7 |
-| fs-10 | copy by line, two files open in parallel | 27 | 13 |
+| fs-10 | copy by line, two files open in parallel | 27 | 14 |
 | fs-11 | size | 8 | 4 |
-| **Total** | 24 samples in Céu, 21 in Atmos | **627** | **264** |
+| **Total** | 24 samples in Céu, 21 in Atmos | **627** | **265** |
 
 The samples not ported are `async-01` and `threads-01`: threads are out of
 this environment.

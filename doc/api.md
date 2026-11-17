@@ -56,10 +56,11 @@ do {
 }                           ;; the connection closes here
 ```
 
-A handle is born fresh, and the program gives it an owner: a `pin`
-declaration, or a task that receives it as an argument. A pinned handle
-cannot leave its block, such as into a task of a pool that lives outside:
-a connection for such a task goes straight from the accept to the task
+A handle is born unpinned, and the program gives it an owner: a `pin`
+declaration, or a task with a `pin` parameter. A `val` also works, and
+the handle then closes with its last reference. A pinned handle cannot
+leave its block, such as into a task of a pool that lives outside: a
+connection for such a task goes straight from the accept to the task
 (see [`uv.tcp.accept`](#tcp)).
 
 An operation on a closed handle raises `invalid stream : closed` or
@@ -104,7 +105,7 @@ An error of libuv is a throw of a table tagged with its name:
 ```
 
 ```
-pin ok, e = catch :error {               ;; any error of libuv
+val ok, e = catch :error {               ;; any error of libuv
     pin c = await uv.tcp.connect("127.0.0.1", 7000)
     ...
 }
