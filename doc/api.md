@@ -22,7 +22,7 @@ Everything lives in the single table `uv`.
 - [Names](#names)
 - [Files](#files)
 - [Other](#other)
-- [From C](#from-c)
+- [Modes](#modes)
 
 ## The loop
 
@@ -215,25 +215,31 @@ other tasks execute while a file is read.
 | `uv.now()` | the time of the loop, in milliseconds |
 | `uv.close(h)` | closes a handle now |
 
-## From C
+## Modes
 
-Alone, `uv.atm` defines `main`: it runs the loop of libuv, and gives the
-time of the loop to the program.
+`uv.atm` registers itself with `atmos.env` (manual of Atmos,
+"Environments"), and supports both modes:
 
-**Hosted**, another environment (a GUI) owns `main`, its own loop, and
-the time, and drives this one. The program is compiled with
-`-DUVA_NO_MAIN`, and the host calls:
+- **Primary**, when it is the first environment registered, or the only
+  one (always, with `atmos-uv`): each step runs the loop of libuv until
+  input or the next timer, and gives the time of the loop to the program.
+  It ends the program when nothing can awake it: no timer, and no active
+  handle or request of libuv.
+- **Secondary**, when another environment came first, such as a GUI: each
+  step only delivers what libuv has ready, with no wait, and the primary
+  gives the time. `uv.now()` is still the clock of libuv.
 
-| Function | When |
-|----------|------|
-| `AStatus uva_poll (void)` | from its loop, as often as it can: delivers what libuv has ready, with no wait. The result is the status of the program, as that of `atm_emit`. |
-| `int uva_pending (void)` | to know if something of libuv may still awake the program (an active handle, a request in course) |
-| `void uva_close (void)` | at the end, after `atm_quit`: runs the closes of the handles and closes the loop |
+A program with two environments includes the primary first, and is built
+with the plain compiler and the flags of both libraries, since `atmos-uv`
+would include `uv.atm` first:
 
-The loop of libuv starts by itself, at its first use.
-The host gives the time (`atm_emit` of microseconds): in this mode, this
-environment emits none, and `uv.now()` is still the clock of libuv.
-The test `tst/host-01.atm` has a host in 30 lines.
+```
+include "iup.atm"
+include "uv.atm"
+```
+
+The test `tst/env-secondary.atm` has a primary of 8 lines, written in the
+test, and `tst/pair/iup-echo.atm` runs under `env-iup`.
 
 The callbacks of libuv emit `:read`, `:accept`, and `:done`, each to the
 one task that waits for it, inside an operation (`atm_emit_to`): a
