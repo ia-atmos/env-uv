@@ -7,7 +7,7 @@
 
 LANG ?= ../lang
 
-atmos-uv: uv.atm $(LANG)/atmos
+atmos-uv: uv.atm $(LANG)/atmos $(LANG)/build/libatmos.a
 	$(MAKE) -C $(LANG) env OUT=$(CURDIR)/atmos-uv ENV=$(CURDIR)/uv.atm ENV_LDFLAGS="-luv"
 
 test: atmos-uv
