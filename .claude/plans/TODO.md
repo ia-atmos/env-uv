@@ -9,13 +9,6 @@ The working plan is `.claude/plans/261113-env-uv.md`.
 
 - The local remote still points to `fsantanna/uv` (it redirects): the
   session's permission mode refused the change to `ia-atmos/env-uv`.
-- The events are `:read [h=s]`, `:accept [h=srv]`, `:done [h=r]`, as he
-  asked on 2026-11-16 ("como no iup"). They still go to the one task
-  that waits (`atm_emit_to`), and the program awaits the operations, not
-  the events. Should they be broadcasts, so that a program may write
-  `await :read [h=s]` itself? The broadcast was 20 times slower with
-  1000 connections. The field `h` alone costs about 1.7 times in
-  `bench/echo.atm` (a table per event and per await).
 
 ## B. Work known and not done
 
