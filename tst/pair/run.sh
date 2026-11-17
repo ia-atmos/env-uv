@@ -1,6 +1,6 @@
 #!/bin/sh
 # Runs the tests of the pair env-iup + env-uv, with no screen: a program
-# with the two includes, built with `-DUVA_NO_MAIN`, under a script of
+# with the two includes (iup first: the primary), under a script of
 # actions of env-iup (its test mode).
 #
 #   tst/pair/run.sh [-u]
@@ -23,7 +23,7 @@ FAIL=0
 for f in tst/pair/*.atm; do
     t=$(basename "$f" .atm)
     script=$(grep -v '^#' "tst/pair/$t.script" | grep -v '^$' | paste -sd";" -)
-    if ! ATMOS_CFLAGS="-DUVA_NO_MAIN -I$IUP/include" \
+    if ! ATMOS_CFLAGS="-I$IUP/include" \
          ATMOS_LDFLAGS="-L$IUP -liup -Wl,-rpath,$IUP -luv" \
          "$LANG_DIR/atmos" -o "$OUT/$t" "$f" 2> "$OUT/$t.err"; then
         echo "FAIL pair/$t (build)"; cat "$OUT/$t.err"; FAIL=1; continue

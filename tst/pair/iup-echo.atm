@@ -1,9 +1,10 @@
 ;; The pair: a GUI of IUP and the network of libuv in one program.
 ;; A button sends the text of a field to an echo server in the same
-;; program, and a label shows the answer. `env-iup` owns `main` and the
-;; time, and polls libuv at each tick.
+;; program, and a label shows the answer. Both register with `atmos.env`:
+;; iup is the primary (it waits and gives the time), uv the secondary.
 ;;
-;; Built with the plain compiler, `-DUVA_NO_MAIN`, and the two includes
+;; Built with the plain compiler and the two includes, iup first, so that
+;; it is the primary environment and uv the secondary
 ;; (see tst/pair/run.sh).
 
 include "../../../env-iup/iup.atm"
