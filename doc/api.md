@@ -234,10 +234,9 @@ The host gives the time (`atm_emit` of microseconds): in this mode, this
 environment emits none, and `uv.now()` is still the clock of libuv.
 The test `tst/host-01.atm` has a host in 30 lines.
 
-The events that the callbacks emit are `:read [h=s]`, `:accept [h=srv]`,
-and `:done [h=r]`, with the stream, the server, or the request as the
-field `h`. Each goes only to the task that waits for it, inside an
-operation: a program awaits the operations, not the events.
+The callbacks of libuv emit `:read`, `:accept`, and `:done`, each to the
+one task that waits for it, inside an operation (`atm_emit_to`): a
+program awaits the operations, and never sees these events.
 
 The names of C in `uv.atm` have the prefix `uva_` or `UVA_`.
 `UVA_LOOP` is the loop (`uv_loop_t*`), for native literals of the program
