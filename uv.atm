@@ -36,10 +36,7 @@ static uv_loop_t* UVA_LOOP_ = NULL;
 static uv_timer_t UVA_CLK;              // awakes the loop for the next timer
 static uint64_t   UVA_NOW  = 0;         // time already given to the program (ms)
 static int        UVA_PRI  = 0;         // the environment is the primary
-static AStatus    UVA_ST   = A_OK;      // status of what a callback emitted
 static int        UVA_QUIT = 0;         // the program is over: callbacks only release
-
-static void uva_exit (void);
 
 // The loop, which starts at its first use.
 static uv_loop_t* uva_loop (void) {
@@ -48,7 +45,6 @@ static uv_loop_t* uva_loop (void) {
         uv_timer_init(UVA_LOOP_, &UVA_CLK);
         uv_update_time(UVA_LOOP_);
         UVA_NOW = uv_now(UVA_LOOP_);
-        atexit(uva_exit);
     }
     return UVA_LOOP_;
 }
@@ -58,10 +54,10 @@ static uv_loop_t* uva_loop (void) {
 // Gives the program the time that passed in the loop, as the primary.
 static void uva_time (void) {
     uint64_t now = uv_now(UVA_LOOP);
-    if (UVA_PRI && UVA_ST==A_OK && !UVA_QUIT && now>UVA_NOW) {
+    if (UVA_PRI && !UVA_QUIT && now>UVA_NOW) {
         uint64_t dt = now - UVA_NOW;
         UVA_NOW = now;
-        UVA_ST = atm_emit(a_int((int64_t)dt * 1000));
+        atm_emit(a_int((int64_t)dt * 1000));
     }
 }
 
@@ -71,14 +67,24 @@ static void uva_clk_cb (uv_timer_t* h) {
 
 // One step: as the primary, waits for input or for the next timer (`us`,
 // or none if negative), and gives the time; as a secondary, only delivers
-// what is ready. Returns 1 if the program must end: nothing can awake it.
-static int uva_step (AStatus* st, int primary, double us) {
+// what is ready. Returns 1 if the program must end: nothing can awake it,
+// which only the primary alone may say.
+//
+// With secondaries, the primary waits 10ms at most, since they only run
+// between its steps.
+#define UVA_BOUND_US 10000.0
+// The callbacks emit from inside `uv_run`: the runtime keeps the first
+// error of their emits, and gives it as the status of the step.
+static int uva_step (int primary, double us) {
     UVA_PRI = primary;
     uva_loop();
     uv_timer_stop(&UVA_CLK);
     if (primary) {
-        if (!uv_loop_alive(UVA_LOOP) && us<0) {
+        if (atm_nenvs == 1 && !uv_loop_alive(UVA_LOOP) && us<0) {
             return 1;
+        }
+        if (atm_nenvs>1 && (us<0 || us>UVA_BOUND_US)) {
+            us = UVA_BOUND_US;
         }
         if (us >= 0) {
             uv_timer_start(&UVA_CLK, uva_clk_cb, (uint64_t)((us+999)/1000), 0);
@@ -89,25 +95,20 @@ static int uva_step (AStatus* st, int primary, double us) {
     } else {
         uv_run(UVA_LOOP, UV_RUN_NOWAIT);
     }
-    *st = UVA_ST;
-    UVA_ST = A_OK;
     return 0;
 }
 
-// The quit of the environment: the callbacks from now on only release.
+// The quit of the environment, which the runtime calls after it released
+// the values of the program, and so its handles: the handles close in two
+// steps, and the loop runs the callbacks of the closes.
 static void uva_quit (void) {
     UVA_QUIT = 1;
-}
-
-// At the exit of the process, after the runtime released the values of the
-// program, and so its handles: the handles close in two steps, and the loop
-// runs the callbacks of the closes.
-static void uva_exit (void) {
-    UVA_QUIT = 1;
-    uv_timer_stop(&UVA_CLK);
-    uv_close((uv_handle_t*)&UVA_CLK, NULL);
-    uv_run(UVA_LOOP_, UV_RUN_DEFAULT);
-    uv_loop_close(UVA_LOOP_);
+    if (UVA_LOOP_ != NULL) {
+        uv_timer_stop(&UVA_CLK);
+        uv_close((uv_handle_t*)&UVA_CLK, NULL);
+        uv_run(UVA_LOOP_, UV_RUN_DEFAULT);
+        uv_loop_close(UVA_LOOP_);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -147,11 +148,11 @@ static void uva_wake (struct ATask** w, const char* tag) {
         return;
     }
     uva_time();
-    if (*w==NULL || UVA_ST!=A_OK) {
+    if (*w == NULL) {
         return;
     }
     AVal t = a_strz(tag);
-    UVA_ST = atm_emit_to(a_obj(&(*w)->node.hdr), t);
+    atm_emit_to(a_obj(&(*w)->node.hdr), t);
     a_dec(t);
 }
 
@@ -1160,14 +1161,14 @@ pin uv = [
     ],
 ]
 
-;; The environment: the runtime calls its step from its generic `main`.
-val uv_mode = [primary=true, secondary=true]
+;; The environment: the runtime calls its step from its generic `main`,
+;; with its mode, `:primary` or `:secondary`.
 atmos.env([
-    mode = uv_mode,
-    step = func () {
-        val pri = (uv_mode.current == :primary)
+    mode = [primary=true, secondary=true],
+    step = func (mode) {
+        val pri = (mode == :primary)
         val us  = atmos.next() || -1
-        `:boolean uva_step(&st, a_truthy($pri), a_dbl($us))`
+        `:boolean uva_step(a_truthy($pri), a_dbl($us))`
     },
     quit = func () {
         `uva_quit();`
