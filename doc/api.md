@@ -223,8 +223,10 @@ other tasks execute while a file is read.
 - **Primary**, when it is the first environment registered, or the only
   one (always, with `atmos-uv`): each step runs the loop of libuv until
   input or the next timer, and gives the time of the loop to the program.
-  It ends the program when nothing can awake it: no timer, and no active
-  handle or request of libuv.
+  Alone, it ends the program when nothing can awake it: no timer, and no
+  active handle or request of libuv. With secondaries, it waits 10ms at
+  most per step, so that they run, and only the main chunk ends the
+  program.
 - **Secondary**, when another environment came first, such as a GUI: each
   step only delivers what libuv has ready, with no wait, and the primary
   gives the time. `uv.now()` is still the clock of libuv.
@@ -238,8 +240,9 @@ include "iup.atm"
 include "uv.atm"
 ```
 
-The test `tst/env-secondary.atm` has a primary of 8 lines, written in the
-test, and `tst/pair/iup-echo.atm` runs under `env-iup`.
+The tests `tst/env-secondary.atm` and `tst/env-primary.atm` have the other
+environment written in the test, and `tst/pair/iup-echo.atm` runs under
+`env-iup`.
 
 The callbacks of libuv emit `:read`, `:accept`, and `:done`, each to the
 one task that waits for it, inside an operation (`atm_emit_to`): a
