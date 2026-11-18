@@ -1,0 +1,22 @@
+;; uv.atm as the primary environment with a secondary after it: the
+;; secondary below only counts its steps. With a secondary, the primary
+;; waits 10ms at most, so that the secondary runs while the program
+;; awaits a long timer, and nobody ends the program but its main chunk.
+;;
+;; Built with the plain compiler and the include (see tst/run.sh).
+
+include "../uv.atm"
+
+var steps = 0
+atmos.env([
+    mode = [secondary=true],
+    step = func (mode) {
+        if steps == 0 {
+            print("the test is a", mode)
+        }
+        set steps = steps + 1
+    },
+])
+
+await 200ms
+print("stepped often", steps >= 10)
