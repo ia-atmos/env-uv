@@ -10,6 +10,16 @@ The working plan is `.claude/plans/261113-env-uv.md`.
 - The local remote still points to `fsantanna/uv` (it redirects): the
   session's permission mode refused the change to `ia-atmos/env-uv`.
 
+## Where to send findings
+
+- About `pin`: the session `atmos-pin` (session_011eECogSDhkVfyt7qme5DLh),
+  since 2026-11-18. It has my remark on a factory that may not own the
+  handle it gives away.
+- Anything else in the compiler: `atmos-lang`
+  (session_011eECogKVQ7ZzmWCoMST2wK).
+- Environments: `envs` (session_011eECofYWTNPACTtUjHN4p6); the pair:
+  `env-iup` (session_011eECoiJLW3LfTrKdHtNFvg).
+
 ## B. Work known and not done
 
 - `atmos.env`: done (2026-11-17, `d35e69d`..`ecc8b48`), with `env-iup` as the
