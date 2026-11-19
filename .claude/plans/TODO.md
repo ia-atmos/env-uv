@@ -17,7 +17,7 @@ session, taken in order, never reused or renumbered; from another session,
 | #2 | Gap of `atmos.env`: a primary that waits delays the secondaries | remark, to `envs` and the author | open, with the author |
 | #3 | Gap of `atmos.env`: the dedicated compiler forces which env is primary | remark, to `envs` and the author | open, with the author |
 | #4 | With secondaries, the primary cannot know that nothing can awake the program | remark, to `envs` | open |
-| #5 | A factory may not own the handle it gives away (`val s` in `uv.tcp.listen`) | remark, to `atmos-pin` | open |
+| #5 | A factory may not own the handle it gives away (`val s` in `uv.tcp.listen`) | remark, to `atmos-pin` | kept there as `atmos-pin#8` |
 | #6 | The trace of an error in an awaited task lacks the line of the `await` | defect, to `atmos-lang` | open, with the author |
 | #7 | A test mode by a global in a `test` block of `uv.atm` (`envs` item 58) | work | later |
 | #8 | A limit for the buffer of a stream (a line with no end grows forever) | work | open |
@@ -49,7 +49,10 @@ session, taken in order, never reused or renumbered; from another session,
 - `uv_tcp_listen`, `uv_tcp_accept`, `uv_tcp_connect_ip` declare the handle
   `val`: a pin given away by its block is an error. If the function throws
   before it returns, the handle closes by its last reference, not by the
-  block. Passed to `atmos-pin` (session_011eECogSDhkVfyt7qme5DLh).
+  block. Passed to `atmos-pin` (session_011eECogSDhkVfyt7qme5DLh), which
+  keeps it as `atmos-pin#8`. The author declared the rules of `pin` stable
+  on 2026-11-19 (`atmos-pin#9`, `lang` `8361f88`): a later change that
+  breaks programs will say what migrates.
 
 ## #6 The trace of an error in an awaited task
 
