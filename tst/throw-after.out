@@ -1,0 +1,5 @@
+stream	false	hi
+write	false	X
+file	false	X
+e2big	false	E2BIG
+exit 0

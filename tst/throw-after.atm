@@ -1,0 +1,48 @@
+;; An exception raised by the program after an operation that it awaited
+;; reaches its catch: the operation ends inside a callback of libuv, and
+;; the task that awaits it throws when it resumes.
+
+pin srv = uv.tcp.listen("127.0.0.1", 0)
+val ip, port = uv.tcp.addr(srv)
+spawn uv.tcp.serve(srv, task (s) {
+    await uv.stream.write(s, "hi\n")
+    await 100ms
+})
+pin c = await uv.tcp.connect(ip, port)
+
+;; after a read of a stream
+task T1 () {
+    val l = await uv.stream.line(c)
+    throw :X [l=l]
+}
+val ok1, e1 = catch :X {
+    await T1()
+}
+print("stream", ok1, e1.l)
+
+;; after a request (a write)
+task T2 () {
+    await uv.stream.write(c, "x\n")
+    throw :X
+}
+print("write", catch :X { await T2() })
+
+;; after a request on a file
+task T3 () {
+    pin f = await uv.fs.open("../samples/fs-01.txt")
+    await uv.fs.line(f)
+    throw :X
+}
+print("file", catch :X { await T3() })
+
+;; after a line too long in a file (the error of the operation itself)
+do {
+    pin f = await uv.fs.open("../build/tst/throw-after.txt", "w")
+    await uv.fs.write(f, "0123456789\n")
+}
+pin f = await uv.fs.open("../build/tst/throw-after.txt")
+val ok4, e4 = catch :error.E2BIG {
+    await uv.fs.line(f, 5)
+}
+print("e2big", ok4, e4.name)
+await uv.fs.unlink("../build/tst/throw-after.txt")
