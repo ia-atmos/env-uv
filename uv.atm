@@ -146,16 +146,11 @@ static AVal uva_error (int r) {
 ///////////////////////////////////////////////////////////////////////////////
 
 // A task that waits for a callback registers itself (`a_cur`) in the handle
-// or request, and awaits `:read`, `:accept`, or `:done` with a predicate
-// that only accepts its own awake (`UVA_WAKE`). The task removes itself
-// when it terminates or aborts.
-//
-// The event is a broadcast (`atm_emit`), and not an emit to the task alone
-// (`atm_emit_to`), which would be cheaper: an exception raised by a task
-// outside the target, awoken because the target terminated, is lost by
-// `atm_emit_to` (reported to atmos-lang, 2026-11-20; tst/throw-after.atm).
-
-static struct ATask* UVA_WAKE = NULL;
+// or request, and awaits an event that the callback emits to that task
+// only (`atm_emit_to`): `:read`, `:accept`, or `:done`. Each callback
+// answers a request that one task made, so the event needs no field to
+// tell who it is for, and the program never sees it: it awaits the
+// operations. The task removes itself when it terminates or aborts.
 
 static void uva_wake (struct ATask** w, const char* tag) {
     if (*w==NULL || UVA_QUIT) {
@@ -166,9 +161,7 @@ static void uva_wake (struct ATask** w, const char* tag) {
         return;
     }
     AVal t = a_strz(tag);
-    UVA_WAKE = *w;
-    atm_emit(t);
-    UVA_WAKE = NULL;
+    atm_emit_to(a_obj(&(*w)->node.hdr), t);
     a_dec(t);
 }
 
@@ -1392,7 +1385,7 @@ func uv_chk (r) {
 task uv_req (r) {
     if !`:boolean ((uva_req*)a_nat_ptr($r))->done` {
         `((uva_req*)a_nat_ptr($r))->waiter = a_cur;`
-        await :done until `:boolean UVA_WAKE == a_cur`
+        await :done
     }
     uv_chk(`:number ((uva_req*)a_nat_ptr($r))->res`)
 }
@@ -1408,7 +1401,7 @@ task uv_stream_take (s, mode, n) {
             break v
         }
         uv_chk(`:number uva_read_start(&st, $s)`)
-        await :read until `:boolean UVA_WAKE == a_cur`
+        await :read
     }
 }
 
@@ -1436,7 +1429,7 @@ task uv_udp_recv (u) {
             break d
         }
         uv_chk(`:number uva_udp_recv_start(&st, $u)`)
-        await :read until `:boolean UVA_WAKE == a_cur`
+        await :read
     }
 }
 
@@ -1461,14 +1454,14 @@ task uv_proc_wait (p) {
         if e != false {
             break e
         }
-        await :done until `:boolean UVA_WAKE == a_cur`
+        await :done
     }
 }
 
 task uv_signal_wait (n) {
     pin g = uv_chk(`:value uva_sig_watch(&st, $n)`)
     if !`:boolean uva_sig_got($g)` {
-        await :done until `:boolean UVA_WAKE == a_cur`
+        await :done
     }
     n
 }
@@ -1494,7 +1487,7 @@ task uv_tcp_accept (srv) {
         if c != false {
             break c
         }
-        await :accept until `:boolean UVA_WAKE == a_cur`
+        await :accept
     }
 }
 
