@@ -1,0 +1,13 @@
+stdout	out
+stderr	err
+code	3	0
+sort	a
+sort	b
+sort	c
+code	0
+pid	true
+killed	9
+cwd	/
+false	ENOENT
+aborted
+exit 0

@@ -1,0 +1,56 @@
+;; Processes: the output of a program, its input, its code of exit, a
+;; signal, a program that does not exist, and a process that is aborted.
+
+;; the output, and the code of exit
+do {
+    pin p = uv.proc.spawn("sh", ["-c", "echo out; echo err >&2; exit 3"])
+    print("stdout", (await uv.stream.line(p.stdout)))
+    print("stderr", (await uv.stream.line(p.stderr)))
+    val e = await uv.proc.wait(p.proc)
+    print("code", e.code, e.signal)
+}
+
+;; the input: lines in, the same lines out, sorted
+do {
+    pin p = uv.proc.spawn("sort")
+    await uv.stream.write(p.stdin, "b\nc\na\n")
+    await uv.stream.shutdown(p.stdin)
+    loop {
+        val l = await uv.stream.line(p.stdout)
+        until l == nil
+        print("sort", l)
+    }
+    print("code", (await uv.proc.wait(p.proc)).code)
+}
+
+;; a signal
+do {
+    pin p = uv.proc.spawn("sleep", ["10"])
+    print("pid", uv.proc.pid(p.proc) > 0)
+    uv.proc.kill(p.proc, 9)
+    val e = await uv.proc.wait(p.proc)
+    print("killed", e.signal)
+}
+
+;; a directory of its own
+do {
+    pin p = uv.proc.spawn("pwd", nil, "/")
+    print("cwd", (await uv.stream.line(p.stdout)))
+    await uv.proc.wait(p.proc)
+}
+
+;; a program that does not exist
+val ok, e = catch :error {
+    uv.proc.spawn("no-such-program-here")
+}
+print(ok, e.name)
+
+;; a process whose task is aborted is terminated
+pin t = spawn {
+    pin p = uv.proc.spawn("sleep", ["10"])
+    await uv.proc.wait(p.proc)
+    print("never")
+}
+await 20ms
+abort t
+print("aborted")
