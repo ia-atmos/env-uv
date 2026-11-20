@@ -1016,6 +1016,58 @@ static int uva_proc_pid (AStatus* st, AVal v) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// SIGNALS
+///////////////////////////////////////////////////////////////////////////////
+
+typedef struct {
+    uv_signal_t   sig;
+    struct ATask* waiter;
+    int           got;
+} uva_sig;
+
+static const char* UVA_KIND_SIG = "uv.signal";
+
+static void uva_sig_free (uv_handle_t* h) {
+    free(h);
+}
+
+static void uva_sig_fin (void* p) {
+    uva_sig* g = p;
+    g->waiter = NULL;
+    uv_close((uv_handle_t*)&g->sig, uva_sig_free);
+}
+
+static void uva_sig_cb (uv_signal_t* h, int signum) {
+    uva_sig* g = (uva_sig*) h;
+    (void) signum;
+    g->got = 1;
+    uva_wake(&g->waiter, "done");
+}
+
+// A watch of one signal, for the running task: once.
+static AVal uva_sig_watch (AStatus* st, AVal n) {
+    if (!a_isnum(n)) {
+        *st = a_error("invalid signal : expected number");
+        return a_nil();
+    }
+    uva_sig* g = calloc(1, sizeof(uva_sig));
+    uv_signal_init(UVA_LOOP, &g->sig);
+    AVal ret = a_nat(g, uva_sig_fin, UVA_KIND_SIG);
+    int err = uv_signal_start_oneshot(&g->sig, uva_sig_cb, (int)a_dbl(n));
+    if (err < 0) {
+        a_dec(ret);
+        return a_int(err);
+    }
+    g->waiter = a_cur;
+    return ret;
+}
+
+static int uva_sig_got (AVal v) {
+    uva_sig* g = a_nat_ptr(v);
+    return g!=NULL && g->got;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // NAMES
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -1413,6 +1465,14 @@ task uv_proc_wait (p) {
     }
 }
 
+task uv_signal_wait (n) {
+    pin g = uv_chk(`:value uva_sig_watch(&st, $n)`)
+    if !`:boolean uva_sig_got($g)` {
+        await :done until `:boolean UVA_WAKE == a_cur`
+    }
+    n
+}
+
 task uv_stream_shutdown (s) {
     pin r = `:value uva_shutdown(&st, $s)`
     await uv_req(r)
@@ -1644,6 +1704,22 @@ pin uv = [
         ;; await uv.pipe.connect(path): a connection to a local socket
         connect = uv_pipe_connect,
     ],
+
+    signal = [
+        ;; await uv.signal.wait(n): the next signal `n` to this process
+        ;; (SIGINT is 2, SIGTERM is 15, SIGUSR1 is 10 on Linux)
+        wait = uv_signal_wait,
+
+        ;; uv.signal.send(pid, n): sends the signal `n` to a process
+        send = func (pid, n) {
+            uv_chk(`:number uv_kill((int)a_dbl($pid), (int)a_dbl($n))`)
+        },
+    ],
+
+    ;; uv.pid(): the identifier of this process
+    pid = func () {
+        `:number uv_os_getpid()`
+    },
 
     proc = [
         ;; uv.proc.spawn(file, [args], [cwd]): runs a program, as
