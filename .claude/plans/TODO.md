@@ -23,6 +23,7 @@ session, taken in order, never reused or renumbered; from another session,
 | #8 | A limit for the buffer of a stream (a line with no end grows forever) | work | open |
 | #9 | UDP, processes, pipes, signals, a small HTTP server | work | later |
 | #10 | Not tested: IPv6 (the container has none), the Mac, Windows | remark | open |
+| #11 | The numeric options of the build (`ATMOS_REAL`, `ATMOS_INT`, `ATMOS_TIME`) in `uv.atm` | work | waiting for `atmos-float#14` |
 
 ## #1 The local remote points to `fsantanna/uv`
 
@@ -58,6 +59,17 @@ session, taken in order, never reused or renumbered; from another session,
 
 - `uv.atm:? (call)`, `uv.atm:? (throw)`, not the line of the program that
   awaits the operation. Sent to `atmos-lang`, which put it to the author.
+
+## #11 The numeric options of the build
+
+- `lang` `692af43` (2026-11-20): `ATMOS_REAL=float`, `ATMOS_INT=32`,
+  `ATMOS_TIME=ms`, all off by default; the default changes nothing here.
+- Under them, `uv.atm` would be wrong: `atm_emit(a_int((int64_t)dt * 1000))`
+  gives microseconds (wrong with `ATMOS_TIME=ms`), and `uv.now()`, file
+  sizes, and positions are 64-bit integers (`ATMOS_INT=32` truncates files
+  over 2GB).
+- Which options each environment supports is with the author
+  (`atmos-float#14`). Nothing to do before that.
 
 ## Where to send findings
 
