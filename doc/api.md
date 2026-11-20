@@ -20,6 +20,8 @@ Everything lives in the single table `uv`.
 - [Streams](#streams)
 - [TCP](#tcp)
 - [UDP](#udp)
+- [Pipes](#pipes)
+- [Processes](#processes)
 - [Names](#names)
 - [Files](#files)
 - [Other](#other)
@@ -193,6 +195,30 @@ The datagrams that arrive while nobody receives wait in the socket, in
 order. A datagram has at most 64K bytes. As for streams, one task at a
 time receives from a socket.
 
+## Pipes
+
+Local sockets (named pipes on Windows), with the operations of TCP:
+
+| Operation | Result |
+|-----------|--------|
+| `uv.pipe.listen(path, [backlog])` | a server, bound to the path and listening |
+| `await uv.pipe.accept(srv)` | the next connection to the server, as a stream |
+| `await uv.pipe.connect(path)` | a connection, as a stream |
+
+## Processes
+
+| Operation | Result |
+|-----------|--------|
+| `uv.proc.spawn(file, [args], [cwd])` | runs a program (found in the `PATH`), with a vector of strings as its arguments, in a directory. Evaluates to `[proc=, stdin=, stdout=, stderr=]`: the process, and three streams |
+| `await uv.proc.wait(p)` | the end of the process, as `[code=, signal=]` |
+| `uv.proc.kill(p, [signal])` | sends a signal (default `SIGTERM`, 15) |
+| `uv.proc.pid(p)` | the identifier of the process in the system |
+
+The streams are read and written with `uv.stream.*`; a `shutdown` of
+`stdin` gives the program the end of its input. A process that still runs
+when its value goes, such as when the task that holds it is aborted, is
+terminated with `SIGTERM`.
+
 ## Names
 
 | Operation | Result |
@@ -277,5 +303,4 @@ The names of C in `uv.atm` have the prefix `uva_` or `UVA_`.
 `UVA_LOOP` is the loop (`uv_loop_t*`), for native literals of the program
 that call libuv directly.
 
-Not in this environment: UDP, pipes, processes, signals, and the threads
-of libuv.
+Not in this environment: signals, and the threads of libuv.
