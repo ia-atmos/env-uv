@@ -18,13 +18,13 @@ session, taken in order, never reused or renumbered; from another session,
 | #3 | Gap of `atmos.env`: the dedicated compiler forces which env is primary | remark, to `envs` and the author | open, with the author |
 | #4 | With secondaries, the primary cannot know that nothing can awake the program | remark, to `envs` | open |
 | #5 | A factory may not own the handle it gives away (`val s` in `uv.tcp.listen`) | remark, to `atmos-pin` | kept there as `atmos-pin#8` |
-| #6 | The trace of an error in an awaited task lacks the line of the `await` | defect, to `atmos-lang` | open, with the author |
+| #6 | The trace of an error in an awaited task lacks the line of the `await` | defect, to `atmos-lang` | fixed on branch `lang` `f946501` (`atmos-lang#13`), checked here; the merge is the author's |
 | #7 | A test mode by a global in a `test` block of `uv.atm` (`envs` item 58) | work | later |
 | #8 | A limit for the buffer of a stream (a line with no end grows forever) | work | done (`b7e5592`) |
-| #9 | UDP, processes, pipes, signals, a small HTTP server | work | UDP done (2026-11-20); the rest in course |
+| #9 | UDP, processes, pipes, signals, a small HTTP server | work | done (2026-11-20, `39b2e1c`..`7fe8470`) |
 | #10 | Not tested: IPv6 (the container has none), the Mac, Windows | remark | open |
 | #11 | The numeric options of the build (`ATMOS_REAL`, `ATMOS_INT`, `ATMOS_TIME`) in `uv.atm` | work | done; `mtime` in whole seconds by the session, to be confirmed |
-| #12 | `atm_emit_to` loses an exception raised after an awaited operation; back to the broadcast | defect, to `atmos-lang`; workaround by the session, to be confirmed | open |
+| #12 | `atm_emit_to` loses an exception raised after an awaited operation; back to the broadcast | defect, to `atmos-lang`; workaround by the session, to be confirmed | confirmed by `atmos-lang`, fix in course; then back to `atm_emit_to` |
 
 ## #1 The local remote points to `fsantanna/uv`
 
@@ -92,6 +92,18 @@ session, taken in order, never reused or renumbered; from another session,
   filter again (`b7e5592`); `tst/throw-after.atm` guards it. The cost:
   1000 connections are about 18 times slower than 10 (`doc/bench.md`).
   When the runtime is fixed, go back to `atm_emit_to`.
+
+## #9 UDP, pipes, processes, signals, HTTP
+
+- Done 2026-11-20, each with its test: `uv.udp.*` (`udp-01`), `uv.pipe.*`
+  local sockets (`pipe-01`), `uv.proc.*` (`proc-01`), `uv.signal.*` and
+  `uv.pid()` (`signal-01`), and `exs/http.atm` (`http-01`, and by hand
+  with curl).
+- The shapes are mine (by the session, to be confirmed): `uv.udp.recv`
+  gives `[data, ip, port]`; `uv.proc.spawn` gives
+  `[proc=, stdin=, stdout=, stderr=]` with pipes always; `uv.proc.wait`
+  gives `[code=, signal=]`; a running process whose value goes gets
+  SIGTERM; signals by number, not by name.
 
 ## Where to send findings
 
