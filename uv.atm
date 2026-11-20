@@ -35,6 +35,7 @@
 static uv_loop_t* UVA_LOOP_ = NULL;
 static uv_timer_t UVA_CLK;              // awakes the loop for the next timer
 static uint64_t   UVA_NOW  = 0;         // time already given to the program (ms)
+static uint64_t   UVA_T0   = 0;         // time of the loop when it started (ms)
 static int        UVA_PRI  = 0;         // the environment is the primary
 static int        UVA_QUIT = 0;         // the program is over: callbacks only release
 
@@ -45,6 +46,7 @@ static uv_loop_t* uva_loop (void) {
         uv_timer_init(UVA_LOOP_, &UVA_CLK);
         uv_update_time(UVA_LOOP_);
         UVA_NOW = uv_now(UVA_LOOP_);
+        UVA_T0  = UVA_NOW;
     }
     return UVA_LOOP_;
 }
@@ -57,7 +59,8 @@ static void uva_time (void) {
     if (UVA_PRI && !UVA_QUIT && now>UVA_NOW) {
         uint64_t dt = now - UVA_NOW;
         UVA_NOW = now;
-        atm_emit(a_int((int64_t)dt * 1000));
+        // in the unit of time of the build (A_TIME_US microseconds)
+        atm_emit(a_int((AInt)(dt * 1000 / A_TIME_US)));
     }
 }
 
@@ -65,29 +68,31 @@ static void uva_clk_cb (uv_timer_t* h) {
     (void) h;
 }
 
-// One step: as the primary, waits for input or for the next timer (`us`,
-// or none if negative), and gives the time; as a secondary, only delivers
+// One step: as the primary, waits for input or for the next timer (`next`,
+// in the unit of time of the build, or none if negative), and gives the
+// time; as a secondary, only delivers
 // what is ready. Returns 1 if the program must end: nothing can awake it,
 // which only the primary alone may say.
 //
 // With secondaries, the primary waits 10ms at most, since they only run
 // between its steps.
-#define UVA_BOUND_US 10000.0
+#define UVA_BOUND_MS 10
 // The callbacks emit from inside `uv_run`: the runtime keeps the first
 // error of their emits, and gives it as the status of the step.
-static int uva_step (int primary, double us) {
+static int uva_step (int primary, double next) {
+    double ms = (next < 0) ? -1 : next * A_TIME_US / 1000.0;
     UVA_PRI = primary;
     uva_loop();
     uv_timer_stop(&UVA_CLK);
     if (primary) {
-        if (atm_nenvs == 1 && !uv_loop_alive(UVA_LOOP) && us<0) {
+        if (atm_nenvs == 1 && !uv_loop_alive(UVA_LOOP) && ms<0) {
             return 1;
         }
-        if (atm_nenvs>1 && (us<0 || us>UVA_BOUND_US)) {
-            us = UVA_BOUND_US;
+        if (atm_nenvs>1 && (ms<0 || ms>UVA_BOUND_MS)) {
+            ms = UVA_BOUND_MS;
         }
-        if (us >= 0) {
-            uv_timer_start(&UVA_CLK, uva_clk_cb, (uint64_t)((us+999)/1000), 0);
+        if (ms >= 0) {
+            uv_timer_start(&UVA_CLK, uva_clk_cb, (uint64_t)(ms + 0.999), 0);
         }
         fflush(stdout);
         uv_run(UVA_LOOP, UV_RUN_ONCE);
@@ -734,9 +739,9 @@ static void uva_fs_cb (uv_fs_t* q) {
     if (r->kind==UVA_FS_STAT && res==0 && !r->gone) {
         uv_stat_t* b = &q->statbuf;
         r->val = a_tab();
-        uva_stat_set(r->val, "size",  a_int(b->st_size));
+        uva_stat_set(r->val, "size",  a_numi((AReal)b->st_size));
         uva_stat_set(r->val, "mode",  a_int(b->st_mode & 07777));
-        uva_stat_set(r->val, "mtime", a_num(b->st_mtim.tv_sec + b->st_mtim.tv_nsec/1e9));
+        uva_stat_set(r->val, "mtime", a_numi((AReal)b->st_mtim.tv_sec));
         uva_stat_set(r->val, "file",  a_bool(S_ISREG(b->st_mode)));
         uva_stat_set(r->val, "dir",   a_bool(S_ISDIR(b->st_mode)));
     }
@@ -1079,9 +1084,9 @@ task uv_tcp_serve (srv, handler, ...) {
 }
 
 pin uv = [
-    ;; uv.now(): the time of the loop, in milliseconds
+    ;; uv.now(): the time of the loop, in milliseconds since it started
     now = func () {
-        `:number uv_now(UVA_LOOP)`
+        `:number.integer (uv_now(UVA_LOOP) - UVA_T0)`
     },
 
     ;; uv.close(h): closes a handle now, before its last reference
@@ -1133,7 +1138,7 @@ pin uv = [
 
         ;; uv.fs.tell(f): the position of the next read or write
         tell = func (f) {
-            `:number uva_fs_tell(&st, $f)`
+            `:value a_numi((AReal)uva_fs_tell(&st, $f))`
         },
 
         ;; await uv.fs.stat(f): [size=, mode=, mtime=, file=, dir=] of an
@@ -1184,7 +1189,7 @@ atmos.env([
     mode = [primary=true, secondary=true],
     step = func (mode) {
         val pri = (mode == :primary)
-        val us  = atmos.next() || -1
+        val us  = atmos.next() || -1          ;; in the unit of the build
         `:boolean uva_step(a_truthy($pri), a_dbl($us))`
     },
     quit = func () {
