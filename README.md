@@ -69,10 +69,11 @@ on the loopback. The tests `timer-*`, `tcp-01` to `tcp-10`, and `fs-00` to
 - [doc/bench.md](doc/bench.md): many connections in one program.
 - [samples/](samples): the samples of ceu-libuv, as in the original.
 - [exs/chat.atm](exs/chat.atm): a chat server.
+- [exs/http.atm](exs/http.atm): a small HTTP server.
 
 ## State
 
-Timers, TCP (clients and servers), streams, names, and files are done.
-UDP, pipes, processes, signals, and threads are not.
+Timers, TCP (clients and servers), UDP, local sockets, streams, names,
+files, processes, and signals are done; the threads of libuv are not.
 Only Linux is tested. libuv also runs on the Mac and on Windows, which is
 the reason to choose it, but this environment was not tested there.
