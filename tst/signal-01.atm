@@ -1,0 +1,46 @@
+;; Signals: a task awaits a signal that the program sends to itself; a
+;; watch that is aborted no longer catches it.
+
+val SIGUSR1 = 10
+val SIGUSR2 = 12
+
+spawn {
+    val n = await uv.signal.wait(SIGUSR1)
+    print("got", n)
+}
+await 10ms
+uv.signal.send(uv.pid(), SIGUSR1)
+await 10ms
+
+;; two signals, the second one only after the first
+spawn {
+    await uv.signal.wait(SIGUSR2)
+    print("first")
+    await uv.signal.wait(SIGUSR2)
+    print("second")
+}
+loop in 2 {
+    await 10ms
+    uv.signal.send(uv.pid(), SIGUSR2)
+}
+await 10ms
+
+;; a watch that is aborted: the signal goes to the next one
+watching 10ms {
+    await uv.signal.wait(SIGUSR1)
+    print("never")
+}
+spawn {
+    await uv.signal.wait(SIGUSR1)
+    print("got again")
+}
+await 10ms
+uv.signal.send(uv.pid(), SIGUSR1)
+await 10ms
+
+;; errors
+val ok, e = catch :error {
+    uv.signal.send(999999, SIGUSR1)
+}
+print(ok, e.name)
+print("done")
