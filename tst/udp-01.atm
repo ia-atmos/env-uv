@@ -1,0 +1,46 @@
+;; UDP: two sockets on the loopback, a datagram each way, an empty one, the
+;; abortion of a receive, and the errors.
+
+pin a = uv.udp.bind("127.0.0.1", 0)
+pin b = uv.udp.bind("127.0.0.1", 0)
+val ipa, pa = uv.udp.addr(a)
+val ipb, pb = uv.udp.addr(b)
+print(ipa, pa > 0, pa != pb)
+
+;; a datagram from a to b, and its answer
+spawn {
+    val d = await uv.udp.recv(b)
+    print("b got", d@0, d@1, d@2 == pa)
+    await uv.udp.send(b, d@1, d@2, "pong")
+}
+await uv.udp.send(a, ipb, pb, "ping")
+val d = await uv.udp.recv(a)
+print("a got", d@0, d@2 == pb)
+
+;; the datagrams keep their order and their limits
+loop i in 3 {
+    await uv.udp.send(a, ipb, pb, "msg " ++ i)
+}
+await uv.udp.send(a, ipb, pb, "")
+loop in 4 {
+    val x = await uv.udp.recv(b)
+    print("b got", "[" ++ x@0 ++ "]")
+}
+
+;; a receive aborted, then the socket is free again
+watching 20ms {
+    await uv.udp.recv(a)
+    print("never")
+}
+await uv.udp.send(b, ipa, pa, "again")
+print("a got", (await uv.udp.recv(a))@0)
+
+;; errors
+val ok1, e1 = catch :error { uv.udp.bind("not an ip", 0) }
+print(ok1, e1.name)
+val ok2, e2 = catch :error { uv.udp.bind("127.0.0.1", pa) }
+print(ok2, e2.name)
+spawn {
+    await uv.udp.recv(a)
+}
+print(catch true { await uv.udp.recv(a) })

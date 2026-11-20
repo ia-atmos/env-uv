@@ -1,0 +1,12 @@
+127.0.0.1	true	true
+b got	ping	127.0.0.1	true
+a got	pong	true
+b got	[msg 0]
+b got	[msg 1]
+b got	[msg 2]
+b got	[]
+a got	again
+false	EINVAL
+false	EADDRINUSE
+false	invalid udp : busy
+exit 0
