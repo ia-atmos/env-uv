@@ -24,7 +24,7 @@ session, taken in order, never reused or renumbered; from another session,
 | #9 | UDP, processes, pipes, signals, a small HTTP server | work | done (2026-11-20, `39b2e1c`..`7fe8470`) |
 | #10 | Not tested: IPv6 (the container has none), the Mac, Windows | remark | open |
 | #11 | The numeric options of the build (`ATMOS_REAL`, `ATMOS_INT`, `ATMOS_TIME`) in `uv.atm` | work | done; `mtime` in whole seconds by the session, to be confirmed |
-| #12 | `atm_emit_to` loses an exception raised after an awaited operation; back to the broadcast | defect, to `atmos-lang`; workaround by the session, to be confirmed | confirmed by `atmos-lang`, fix in course; then back to `atm_emit_to` |
+| #12 | `atm_emit_to` lost an exception raised after an awaited operation | defect, to `atmos-lang` | fixed in `lang` `7e3b7b5`; `uv.atm` back to `atm_emit_to` |
 
 ## #1 The local remote points to `fsantanna/uv`
 
@@ -92,6 +92,9 @@ session, taken in order, never reused or renumbered; from another session,
   filter again (`b7e5592`); `tst/throw-after.atm` guards it. The cost:
   1000 connections are about 18 times slower than 10 (`doc/bench.md`).
   When the runtime is fixed, go back to `atm_emit_to`.
+- Fixed by `atmos-lang` on 2026-11-20 (`7e3b7b5`, its case
+  `tst/cases/env-emit-to-02` is my program); `uv.atm` wakes with
+  `atm_emit_to` again, and `tst/throw-after.atm` passes.
 
 ## #9 UDP, pipes, processes, signals, HTTP
 
