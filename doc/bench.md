@@ -27,3 +27,24 @@ Time in milliseconds, three runs each, libuv 1.48, Linux, one core:
 
 Not measured: a comparison with libuv in C, with Céu, or with another
 runtime.
+
+## 2026-11-20: back to the broadcast
+
+`atm_emit_to` loses an exception that a task raises after the operation it
+awaited: the target of the emit (the task inside the operation) ends, its
+end awakes the task of the program, which is outside the target, and the
+exception of that task never reaches its `catch` (the program hangs or
+ends with it). `tst/throw-after.atm` shows it, and the defect was reported
+to the compiler with a program of 30 lines and no libuv.
+
+Until it is fixed, `uv.atm` wakes its tasks with a broadcast and a filter
+again (correct and slower). The numbers of this version are below; the
+numbers above stay as the measure of what the fix will give back.
+
+| N x K | a broadcast per callback (2026-11-20) |
+|-------|--------------------------------------:|
+| 10 x 2000 | 344, 345, 342 |
+| 100 x 200 | 2115, 1953, 1997 |
+| 1000 x 20 | 6042, 6621, 6372 |
+
+About 18 times from 10 to 1000, as with the first broadcast.

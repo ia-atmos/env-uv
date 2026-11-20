@@ -80,11 +80,13 @@ val buf = await uv.stream.read(client)
 
 Here there is one level. The callback of libuv awakes the one task that
 waits for it, and the program never sees the event. What Céu makes
-explicit, and Atmos does not, is that an input may be for somebody else:
+explicit, and Atmos hides, is that an input may be for somebody else:
 `until s==...` is a filter that every reader of every stream executes on
-every event. The first version of this binding did the same (a broadcast
-with a predicate), and 1000 connections were 20 times slower than 10 for
-the same work (see [bench.md](bench.md)).
+every event. This binding does the same inside its operations (a
+broadcast with a filter), and 1000 connections are much slower
+than 10 for the same work (about 18 times). An emit to the one task (`atm_emit_to`) made
+it almost flat, but it loses an exception raised after an operation, so
+it waits for a fix of the runtime (see [bench.md](bench.md)).
 
 ### The life of a handle
 
