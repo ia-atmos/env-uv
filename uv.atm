@@ -115,6 +115,9 @@ static void uva_quit (void) {
 // ERRORS
 ///////////////////////////////////////////////////////////////////////////////
 
+// A line longer than its limit: E2BIG, with a message of its own.
+#define UVA_ELINE UV_E2BIG
+
 // An error of libuv as a value: :error.<NAME> [name=, msg=]
 static AVal uva_error (int r) {
     char tag[64];
@@ -124,7 +127,7 @@ static AVal uva_error (int r) {
     AVal k1 = a_strz("name");
     AVal v1 = a_strz(uv_err_name(r));
     AVal k2 = a_strz("msg");
-    AVal v2 = a_strz(uv_strerror(r));
+    AVal v2 = a_strz((r == UVA_ELINE) ? "line too long" : uv_strerror(r));
     a_tag(e, t);
     a_setindex(e, k1, v1);
     a_setindex(e, k2, v2);
@@ -137,11 +140,16 @@ static AVal uva_error (int r) {
 ///////////////////////////////////////////////////////////////////////////////
 
 // A task that waits for a callback registers itself (`a_cur`) in the handle
-// or request, and awaits an event that the callback emits to that task
-// only (`atm_emit_to`): `:read`, `:accept`, or `:done`. Each callback
-// answers a request that one task made, so the event needs no field to
-// tell who it is for, and the program never sees it: it awaits the
-// operations. The task removes itself when it terminates or aborts.
+// or request, and awaits `:read`, `:accept`, or `:done` with a predicate
+// that only accepts its own awake (`UVA_WAKE`). The task removes itself
+// when it terminates or aborts.
+//
+// The event is a broadcast (`atm_emit`), and not an emit to the task alone
+// (`atm_emit_to`), which would be cheaper: an exception raised by a task
+// outside the target, awoken because the target terminated, is lost by
+// `atm_emit_to` (reported to atmos-lang, 2026-11-20; tst/throw-after.atm).
+
+static struct ATask* UVA_WAKE = NULL;
 
 static void uva_wake (struct ATask** w, const char* tag) {
     if (*w==NULL || UVA_QUIT) {
@@ -152,7 +160,9 @@ static void uva_wake (struct ATask** w, const char* tag) {
         return;
     }
     AVal t = a_strz(tag);
-    atm_emit_to(a_obj(&(*w)->node.hdr), t);
+    UVA_WAKE = *w;
+    atm_emit(t);
+    UVA_WAKE = NULL;
     a_dec(t);
 }
 
@@ -183,10 +193,12 @@ static char* uva_buf_room (uva_buf* b, size_t n) {
 // Takes bytes from a buffer:
 //  - mode 0: all that it has
 //  - mode 1: `n` bytes
-//  - mode 2: a line, with no "\n"
+//  - mode 2: a line, with no "\n", of at most `n` bytes
 // Returns a string, or `false` if the bytes are still to come. When the
 // source is over (`over` is UV_EOF or an error), returns what the buffer
-// still has, then `nil` at the end, or the number of the error.
+// still has, then `nil` at the end, or the number of the error. A line
+// that does not end within `n` bytes is the error UVA_ELINE: its bytes
+// stay in the buffer.
 static AVal uva_buf_take (uva_buf* b, int over, int mode, AVal vn) {
     char*  p     = b->p + b->off;
     size_t avail = b->len - b->off;
@@ -200,11 +212,14 @@ static AVal uva_buf_take (uva_buf* b, int over, int mode, AVal vn) {
         n  = a_isnum(vn) ? (size_t)a_dbl(vn) : 0;
         ok = (avail >= n);
     } else {
+        size_t max = a_isnum(vn) ? (size_t)a_dbl(vn) : (size_t)-1;
         char* nl = (avail > 0) ? memchr(p, '\n', avail) : NULL;
-        if (nl != NULL) {
+        if (nl!=NULL && (size_t)(nl-p)<=max) {
             n    = nl - p;
             skip = 1;
             ok   = 1;
+        } else if (avail > max) {
+            return a_int(UVA_ELINE);
         }
     }
     if (!ok) {
@@ -904,7 +919,7 @@ func uv_chk (r) {
 task uv_req (r) {
     if !`:boolean ((uva_req*)a_nat_ptr($r))->done` {
         `((uva_req*)a_nat_ptr($r))->waiter = a_cur;`
-        await :done
+        await :done until `:boolean UVA_WAKE == a_cur`
     }
     uv_chk(`:number ((uva_req*)a_nat_ptr($r))->res`)
 }
@@ -920,7 +935,7 @@ task uv_stream_take (s, mode, n) {
             break v
         }
         uv_chk(`:number uva_read_start(&st, $s)`)
-        await :read
+        await :read until `:boolean UVA_WAKE == a_cur`
     }
 }
 
@@ -928,8 +943,8 @@ task uv_stream_read (s, n) {
     await uv_stream_take(s, (if n==nil => 0 => 1), n)
 }
 
-task uv_stream_line (s) {
-    await uv_stream_take(s, 2, nil)
+task uv_stream_line (s, max) {
+    await uv_stream_take(s, 2, max || 65536)
 }
 
 task uv_stream_write (s, str) {
@@ -958,7 +973,7 @@ task uv_tcp_accept (srv) {
         if c != false {
             break c
         }
-        await :accept
+        await :accept until `:boolean UVA_WAKE == a_cur`
     }
 }
 
@@ -1007,7 +1022,7 @@ task uv_fs_open (path, mode, perm) {
 
 task uv_fs_take (f, mode, n) {
     loop {
-        val v = `:value uva_fs_take(&st, $f, (int)a_dbl($mode), $n)`
+        val v = uv_chk(`:value uva_fs_take(&st, $f, (int)a_dbl($mode), $n)`)
         if v != false {
             break v
         }
@@ -1021,8 +1036,8 @@ task uv_fs_read (f, n) {
     await uv_fs_take(f, (if n==nil => 0 => 1), n)
 }
 
-task uv_fs_line (f) {
-    await uv_fs_take(f, 2, nil)
+task uv_fs_line (f, max) {
+    await uv_fs_take(f, 2, max || 65536)
 }
 
 task uv_fs_write (f, str) {
@@ -1080,7 +1095,8 @@ pin uv = [
         ;; At the end of the stream: what is left, then nil.
         read = uv_stream_read,
 
-        ;; await uv.stream.line(s): a line, with no "\n"
+        ;; await uv.stream.line(s, [max]): a line, with no "\n", of at most
+        ;; `max` bytes (default 64K), else the error :error.E2BIG.
         ;; At the end of the stream: what is left, then nil.
         line = uv_stream_line,
 
@@ -1102,7 +1118,8 @@ pin uv = [
         ;; At the end of the file: what is left, then nil.
         read = uv_fs_read,
 
-        ;; await uv.fs.line(f): a line, with no "\n"
+        ;; await uv.fs.line(f, [max]): a line, with no "\n", of at most
+        ;; `max` bytes (default 64K), else the error :error.E2BIG.
         ;; At the end of the file: what is left, then nil.
         line = uv_fs_line,
 
