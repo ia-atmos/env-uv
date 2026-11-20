@@ -1,0 +1,44 @@
+;; A line has a limit (default 64K): a line that does not end within it is
+;; the error :error.E2BIG, and the stream does not grow forever.
+
+pin srv = uv.tcp.listen("127.0.0.1", 0)
+val ip, port = uv.tcp.addr(srv)
+
+task Sender (s) {
+    var big = "x"
+    loop in 17 {
+        set big = big ++ big            ;; 128K with no "\n"
+    }
+    await uv.stream.write(s, "short\n" ++ big)
+    await 50ms
+}
+spawn uv.tcp.serve(srv, Sender)
+
+pin c = await uv.tcp.connect(ip, port)
+print((await uv.stream.line(c)))
+val ok, e = catch :error {
+    await uv.stream.line(c)
+}
+print(ok, e.name, e.msg)
+
+;; a limit of its own
+pin c2 = await uv.tcp.connect(ip, port)
+print((await uv.stream.line(c2, 10)))
+val ok2, e2 = catch :error.E2BIG {
+    await uv.stream.line(c2, 1000)
+}
+print(ok2, e2.name)
+
+;; the same in a file
+do {
+    pin f = await uv.fs.open("../build/tst/line-max.txt", "w")
+    await uv.fs.write(f, "0123456789\nabc")
+}
+pin f = await uv.fs.open("../build/tst/line-max.txt")
+val ok3, e3 = catch :error.E2BIG {
+    await uv.fs.line(f, 5)
+}
+print(ok3, e3.name)
+print((await uv.fs.line(f, 10)))
+print((await uv.fs.line(f)))
+await uv.fs.unlink("../build/tst/line-max.txt")

@@ -1,0 +1,8 @@
+short
+false	E2BIG	line too long
+short
+false	E2BIG
+false	E2BIG
+0123456789
+abc
+exit 0
