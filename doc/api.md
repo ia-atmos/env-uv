@@ -19,6 +19,7 @@ Everything lives in the single table `uv`.
 - [Errors](#errors)
 - [Streams](#streams)
 - [TCP](#tcp)
+- [UDP](#udp)
 - [Names](#names)
 - [Files](#files)
 - [Other](#other)
@@ -178,6 +179,19 @@ loop {
 The connection belongs to its task: it closes when the task terminates or
 is aborted.
 `await uv.tcp.serve(srv, Client)` is the same loop.
+
+## UDP
+
+| Operation | Result |
+|-----------|--------|
+| `uv.udp.bind(ip, port)` | a socket of UDP, bound to the address. Port `0` is any free port. |
+| `await uv.udp.send(u, ip, port, str)` | sends the string as one datagram |
+| `await uv.udp.recv(u)` | the next datagram, as `[data, ip, port]` |
+| `uv.udp.addr(u)` | the ip and the port of the socket, as two values |
+
+The datagrams that arrive while nobody receives wait in the socket, in
+order. A datagram has at most 64K bytes. As for streams, one task at a
+time receives from a socket.
 
 ## Names
 
