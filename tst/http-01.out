@@ -1,0 +1,23 @@
+HTTP/1.0 200 OK
+Content-Type: text/plain
+Content-Length: 6
+Connection: close
+
+hello
+
+HTTP/1.0 404 Not Found
+Content-Type: text/plain
+Content-Length: 10
+Connection: close
+
+not found
+
+HTTP/1.0 405 Method Not Allowed
+Content-Type: text/plain
+Content-Length: 9
+Connection: close
+
+only GET
+
+[]
+exit 0

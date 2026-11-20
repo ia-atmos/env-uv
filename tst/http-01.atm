@@ -1,0 +1,87 @@
+;; exs/http.atm, with its client in the program: a page, a page that does
+;; not exist, a method that is not GET, and a client that sends nothing
+;; (its connection ends at the timeout, here shortened).
+
+val pages = [
+    ["/",      "text/html",  "<h1>Atmos over libuv</h1>\n"],
+    ["/hello", "text/plain", "hello\n"],
+]
+
+func page (path) {
+    loop _,p in pages {
+        if p@0 == path {
+            return p
+        }
+    }
+    nil
+}
+
+func answer (status, kind, body) {
+    "HTTP/1.0 " ++ status ++ "\r\n" ++
+    "Content-Type: " ++ kind ++ "\r\n" ++
+    "Content-Length: " ++ #body ++ "\r\n" ++
+    "Connection: close\r\n\r\n" ++ body
+}
+
+;; One request: the first line, then the headers up to an empty line.
+task Request (s) {
+    val first = await uv.stream.line(s, 8192)
+    if first == nil {
+        return nil
+    }
+    loop {
+        val h = await uv.stream.line(s, 8192)
+        until (h == nil) || (h == "") || (h == "\r")
+    }
+    ;; "GET /path HTTP/1.1"
+    val words = string.split(first)
+    val method, path = words@0, words@1
+    if method != "GET" {
+        answer("405 Method Not Allowed", "text/plain", "only GET\n")
+    } else {
+        val p = page(path)
+        if p == nil {
+            answer("404 Not Found", "text/plain", "not found\n")
+        } else {
+            answer("200 OK", p@1, p@2)
+        }
+    }
+}
+
+task Client (pin s) {
+    val ok = catch :error {
+        var res = nil
+        watching 100ms {
+            set res = await Request(s)
+        }
+        if res != nil {
+            await uv.stream.write(s, res)
+        }
+    }
+}
+
+pin srv = uv.tcp.listen("127.0.0.1", 0)
+val ip, port = uv.tcp.addr(srv)
+pin cs = tasks(100)
+spawn {
+    loop {
+        spawn @cs Client(await uv.tcp.accept(srv))
+    }
+}
+
+task Get (req) {
+    pin c = await uv.tcp.connect(ip, port)
+    await uv.stream.write(c, req)
+    var all = ""
+    loop {
+        val b = await uv.stream.read(c)
+        until b == nil
+        set all = all ++ b
+    }
+    all
+}
+
+print((await Get("GET /hello HTTP/1.0\r\nHost: x\r\n\r\n")))
+print((await Get("GET /nothing HTTP/1.0\r\n\r\n")))
+print((await Get("POST / HTTP/1.0\r\n\r\n")))
+print("[" ++ (await Get("")) ++ "]")
