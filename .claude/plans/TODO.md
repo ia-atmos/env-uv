@@ -18,7 +18,7 @@ session, taken in order, never reused or renumbered; from another session,
 | #3 | Gap of `atmos.env`: the dedicated compiler forces which env is primary | remark, to `envs` and the author | open, with the author |
 | #4 | With secondaries, the primary cannot know that nothing can awake the program | remark, to `envs` | open |
 | #5 | A factory may not own the handle it gives away (`val s` in `uv.tcp.listen`) | remark, to `atmos-pin` | kept there as `atmos-pin#8` |
-| #6 | The trace of an error in an awaited task lacks the line of the `await` | defect, to `atmos-lang` | fixed on branch `lang` `f946501` (`atmos-lang#13`), checked here; the merge is the author's |
+| #6 | The trace of an error in an awaited task lacks the line of the `await` | defect, to `atmos-lang` | fixed: merged in `lang` `61979ce` (`atmos-lang#13`); `fs-00.out` gains the lines |
 | #7 | A test mode by a global in a `test` block of `uv.atm` (`envs` item 58) | work | later |
 | #8 | A limit for the buffer of a stream (a line with no end grows forever) | work | done (`b7e5592`) |
 | #9 | UDP, processes, pipes, signals, a small HTTP server | work | done (2026-11-20, `39b2e1c`..`7fe8470`) |
