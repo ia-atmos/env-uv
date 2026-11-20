@@ -22,6 +22,7 @@ Everything lives in the single table `uv`.
 - [UDP](#udp)
 - [Pipes](#pipes)
 - [Processes](#processes)
+- [Signals](#signals)
 - [Names](#names)
 - [Files](#files)
 - [Other](#other)
@@ -219,6 +220,18 @@ The streams are read and written with `uv.stream.*`; a `shutdown` of
 when its value goes, such as when the task that holds it is aborted, is
 terminated with `SIGTERM`.
 
+## Signals
+
+| Operation | Result |
+|-----------|--------|
+| `await uv.signal.wait(n)` | the next signal `n` to this process (`SIGINT` is 2, `SIGTERM` 15, `SIGUSR1` 10 on Linux) |
+| `uv.signal.send(pid, n)` | sends the signal `n` to a process |
+| `uv.pid()` | the identifier of this process |
+
+A wait catches one signal; a task that awaits again catches the next.
+While nobody waits, a signal has its usual effect (`SIGINT` ends the
+program).
+
 ## Names
 
 | Operation | Result |
@@ -303,4 +316,4 @@ The names of C in `uv.atm` have the prefix `uva_` or `UVA_`.
 `UVA_LOOP` is the loop (`uv_loop_t*`), for native literals of the program
 that call libuv directly.
 
-Not in this environment: signals, and the threads of libuv.
+Not in this environment: the threads of libuv.
