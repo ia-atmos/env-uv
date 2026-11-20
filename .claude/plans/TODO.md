@@ -21,7 +21,7 @@ session, taken in order, never reused or renumbered; from another session,
 | #6 | The trace of an error in an awaited task lacks the line of the `await` | defect, to `atmos-lang` | open, with the author |
 | #7 | A test mode by a global in a `test` block of `uv.atm` (`envs` item 58) | work | later |
 | #8 | A limit for the buffer of a stream (a line with no end grows forever) | work | done (`b7e5592`) |
-| #9 | UDP, processes, pipes, signals, a small HTTP server | work | later |
+| #9 | UDP, processes, pipes, signals, a small HTTP server | work | UDP done (2026-11-20); the rest in course |
 | #10 | Not tested: IPv6 (the container has none), the Mac, Windows | remark | open |
 | #11 | The numeric options of the build (`ATMOS_REAL`, `ATMOS_INT`, `ATMOS_TIME`) in `uv.atm` | work | done; `mtime` in whole seconds by the session, to be confirmed |
 | #12 | `atm_emit_to` loses an exception raised after an awaited operation; back to the broadcast | defect, to `atmos-lang`; workaround by the session, to be confirmed | open |
