@@ -1,5 +1,7 @@
 (should generate uncaught exception)
 ==> ERROR:
+ |  tst/fs-00.atm:6 (await)
+ |  uv.atm:? (await)
  |  uv.atm:? (call)
  v  uv.atm:? (throw)
 ==> :error.ENOENT [name="ENOENT", msg="no such file or directory"]
