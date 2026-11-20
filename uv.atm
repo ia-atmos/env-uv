@@ -258,6 +258,7 @@ typedef struct {
         uv_connect_t connect;
         uv_write_t   write;
         uv_shutdown_t shutdown;
+        uv_udp_send_t udp_send;
         uv_getaddrinfo_t getaddrinfo;
         uv_fs_t      fs;
     } u;
@@ -490,6 +491,26 @@ static int uva_addr (AStatus* st, AVal ip, AVal port, struct sockaddr_storage* a
     return err;
 }
 
+// A table with the ip and the port of an address, at the indexes `i` and
+// `i+1`.
+static AVal uva_name_tab (struct sockaddr* addr, int i) {
+    char ip[64] = "";
+    int  port;
+    if (addr->sa_family == AF_INET6) {
+        uv_ip6_name((struct sockaddr_in6*)addr, ip, sizeof(ip));
+        port = ntohs(((struct sockaddr_in6*)addr)->sin6_port);
+    } else {
+        uv_ip4_name((struct sockaddr_in*)addr, ip, sizeof(ip));
+        port = ntohs(((struct sockaddr_in*)addr)->sin_port);
+    }
+    AVal t = a_tab();
+    AVal x = a_strz(ip);
+    a_setindex(t, a_int(i), x);
+    a_setindex(t, a_int(i+1), a_int(port));
+    a_dec(x);
+    return t;
+}
+
 // [ip, port] of a stream, or of its peer.
 static AVal uva_tcp_name (AStatus* st, AVal v, int peer) {
     uva_stream* s = uva_stream_of(st, v);
@@ -504,21 +525,7 @@ static AVal uva_tcp_name (AStatus* st, AVal v, int peer) {
     if (err < 0) {
         return a_int(err);
     }
-    char ip[64] = "";
-    int  port;
-    if (addr.ss_family == AF_INET6) {
-        uv_ip6_name((struct sockaddr_in6*)&addr, ip, sizeof(ip));
-        port = ntohs(((struct sockaddr_in6*)&addr)->sin6_port);
-    } else {
-        uv_ip4_name((struct sockaddr_in*)&addr, ip, sizeof(ip));
-        port = ntohs(((struct sockaddr_in*)&addr)->sin_port);
-    }
-    AVal t = a_tab();
-    AVal x = a_strz(ip);
-    a_setindex(t, a_int(0), x);
-    a_setindex(t, a_int(1), a_int(port));
-    a_dec(x);
-    return t;
+    return uva_name_tab((struct sockaddr*)&addr, 0);
 }
 
 // CONNECT
@@ -597,6 +604,221 @@ static AVal uva_tcp_accept (AStatus* st, AVal v) {
         return a_int(err);
     }
     return ret;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// UDP
+///////////////////////////////////////////////////////////////////////////////
+
+// A datagram received and not consumed.
+typedef struct uva_dgram {
+    struct uva_dgram* next;
+    struct sockaddr_storage addr;
+    size_t len;
+    char   data[];
+} uva_dgram;
+
+typedef struct {
+    uv_udp_t      udp;
+    struct ATask* waiter;   // task that receives
+    int           err;      // an error of the receive
+    int           reading;  // between uv_udp_recv_start and uv_udp_recv_stop
+    uva_dgram*    head;     // datagrams received, in order
+    uva_dgram*    tail;
+    char          buf[65536];
+} uva_udp;
+
+static const char* UVA_KIND_UDP = "uv.udp";
+
+static void uva_udp_free (uv_handle_t* h) {
+    uva_udp* u = (uva_udp*) h;
+    while (u->head != NULL) {
+        uva_dgram* d = u->head;
+        u->head = d->next;
+        free(d);
+    }
+    free(u);
+}
+
+static void uva_udp_fin (void* p) {
+    uva_udp* u = p;
+    u->waiter = NULL;
+    uv_close((uv_handle_t*)&u->udp, uva_udp_free);
+}
+
+static uva_udp* uva_udp_of (AStatus* st, AVal v) {
+    if (!a_nat_is(v,UVA_KIND_UDP)) {
+        *st = a_error("invalid udp");
+        return NULL;
+    }
+    if (a_nat_ptr(v) == NULL) {
+        *st = a_error("invalid udp : closed");
+        return NULL;
+    }
+    return a_nat_ptr(v);
+}
+
+// A socket bound to an address (port 0: any free port). Returns the socket,
+// or the number of the error.
+static AVal uva_udp_bind (AStatus* st, AVal ip, AVal port) {
+    struct sockaddr_storage addr;
+    int err = uva_addr(st, ip, port, &addr);
+    if (*st != A_OK) {
+        return a_nil();
+    }
+    if (err < 0) {
+        return a_int(err);
+    }
+    uva_udp* u = calloc(1, sizeof(uva_udp));
+    uv_udp_init(UVA_LOOP, &u->udp);
+    AVal ret = a_nat(u, uva_udp_fin, UVA_KIND_UDP);
+    err = uv_udp_bind(&u->udp, (struct sockaddr*)&addr, 0);
+    if (err < 0) {
+        a_dec(ret);
+        return a_int(err);
+    }
+    return ret;
+}
+
+static void uva_udp_alloc_cb (uv_handle_t* h, size_t hint, uv_buf_t* buf) {
+    uva_udp* u = (uva_udp*) h;
+    (void) hint;
+    *buf = uv_buf_init(u->buf, sizeof(u->buf));
+}
+
+static void uva_udp_recv_cb (uv_udp_t* h, ssize_t n, const uv_buf_t* buf,
+                             const struct sockaddr* addr, unsigned flags) {
+    uva_udp* u = (uva_udp*) h;
+    (void) flags;
+    if (n < 0) {
+        u->err = n;
+    } else if (addr == NULL) {
+        return;                     // nothing more to read now
+    } else {
+        uva_dgram* d = malloc(sizeof(uva_dgram) + n);
+        d->next = NULL;
+        d->len  = n;
+        memcpy(d->data, buf->base, n);
+        memcpy(&d->addr, addr, (addr->sa_family == AF_INET6)
+            ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in));
+        if (u->tail == NULL) {
+            u->head = u->tail = d;
+        } else {
+            u->tail->next = d;
+            u->tail = d;
+        }
+    }
+    uva_wake(&u->waiter, "read");
+}
+
+static void uva_udp_wait (AStatus* st, AVal v) {
+    uva_udp* u = uva_udp_of(st, v);
+    if (u == NULL) {
+        return;
+    }
+    if (u->waiter != NULL) {
+        *st = a_error("invalid udp : busy");
+        return;
+    }
+    u->waiter = a_cur;
+}
+
+static void uva_udp_unwait (AVal v) {
+    uva_udp* u = a_nat_ptr(v);
+    if (u!=NULL && u->waiter==a_cur) {
+        u->waiter = NULL;
+        if (u->reading) {
+            uv_udp_recv_stop(&u->udp);
+            u->reading = 0;
+        }
+    }
+}
+
+static int uva_udp_recv_start (AStatus* st, AVal v) {
+    uva_udp* u = uva_udp_of(st, v);
+    if (u==NULL || u->reading) {
+        return 0;
+    }
+    int err = uv_udp_recv_start(&u->udp, uva_udp_alloc_cb, uva_udp_recv_cb);
+    u->reading = (err == 0);
+    return err;
+}
+
+// The next datagram as [data, ip, port], or `false` if none arrived, or the
+// number of an error.
+static AVal uva_udp_take (AStatus* st, AVal v) {
+    uva_udp* u = uva_udp_of(st, v);
+    if (u == NULL) {
+        return a_nil();
+    }
+    if (u->head == NULL) {
+        if (u->err < 0) {
+            int err = u->err;
+            u->err = 0;
+            return a_int(err);
+        }
+        return a_bool(0);
+    }
+    uva_dgram* d = u->head;
+    u->head = d->next;
+    if (u->head == NULL) {
+        u->tail = NULL;
+    }
+    AVal t = uva_name_tab((struct sockaddr*)&d->addr, 1);
+    AVal x = a_str(d->data, d->len);
+    a_setindex(t, a_int(0), x);
+    a_dec(x);
+    free(d);
+    return t;
+}
+
+static void uva_udp_send_cb (uv_udp_send_t* q, int status) {
+    uva_req_done((uva_req*)q, status);
+}
+
+static AVal uva_udp_send (AStatus* st, AVal v, AVal ip, AVal port, AVal str) {
+    uva_udp* u = uva_udp_of(st, v);
+    if (u == NULL) {
+        return a_nil();
+    }
+    if (str.type != A_STR) {
+        *st = a_error("invalid send : expected string");
+        return a_nil();
+    }
+    struct sockaddr_storage addr;
+    int err = uva_addr(st, ip, port, &addr);
+    if (*st != A_OK) {
+        return a_nil();
+    }
+    size_t n = A_STR_OF(str)->len;
+    uva_req* r;
+    AVal ret = uva_req_new(&r, n);
+    memcpy(r->data, A_STR_OF(str)->s, n);
+    uv_buf_t buf = uv_buf_init(r->data, n);
+    if (err == 0) {
+        err = uv_udp_send(&r->u.udp_send, &u->udp, &buf, 1,
+            (struct sockaddr*)&addr, uva_udp_send_cb);
+    }
+    if (err < 0) {
+        r->res  = err;
+        r->done = 1;
+    }
+    return ret;
+}
+
+// [ip, port] of the socket.
+static AVal uva_udp_name (AStatus* st, AVal v) {
+    uva_udp* u = uva_udp_of(st, v);
+    if (u == NULL) {
+        return a_nil();
+    }
+    struct sockaddr_storage addr;
+    int len = sizeof(addr);
+    int err = uv_udp_getsockname(&u->udp, (struct sockaddr*)&addr, &len);
+    if (err < 0) {
+        return a_int(err);
+    }
+    return uva_name_tab((struct sockaddr*)&addr, 0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -957,6 +1179,26 @@ task uv_stream_write (s, str) {
     await uv_req(r)
 }
 
+task uv_udp_recv (u) {
+    `uva_udp_wait(&st, $u);`
+    defer {
+        `uva_udp_unwait($u);`
+    }
+    loop {
+        val d = uv_chk(`:value uva_udp_take(&st, $u)`)
+        if d != false {
+            break d
+        }
+        uv_chk(`:number uva_udp_recv_start(&st, $u)`)
+        await :read until `:boolean UVA_WAKE == a_cur`
+    }
+}
+
+task uv_udp_send (u, ip, port, str) {
+    pin r = `:value uva_udp_send(&st, $u, $ip, $port, $str)`
+    await uv_req(r)
+}
+
 task uv_stream_shutdown (s) {
     pin r = `:value uva_shutdown(&st, $s)`
     await uv_req(r)
@@ -1152,6 +1394,26 @@ pin uv = [
     dns = [
         ;; await uv.dns.lookup(name): the addresses of a name, as strings
         lookup = uv_dns_lookup,
+    ],
+
+    udp = [
+        ;; uv.udp.bind(ip, port): a socket of UDP, bound to the address
+        ;; (port 0: any free port)
+        bind = func (ip, port) {
+            uv_chk(`:value uva_udp_bind(&st, $ip, $port)`)
+        },
+
+        ;; await uv.udp.send(u, ip, port, str): sends a datagram
+        send = uv_udp_send,
+
+        ;; await uv.udp.recv(u): the next datagram, as [data, ip, port]
+        recv = uv_udp_recv,
+
+        ;; uv.udp.addr(u): the ip and the port of the socket
+        addr = func (u) {
+            val t = uv_chk(`:value uva_udp_name(&st, $u)`)
+            return t@0, t@1
+        },
     ],
 
     tcp = [
