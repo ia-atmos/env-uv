@@ -1,0 +1,36 @@
+;; Pipes: an echo server on a local socket and its client, as with TCP.
+
+val path = "../build/tst/pipe-01.sock"
+do {
+    val ok = catch true { await uv.fs.unlink(path) }      ;; from an old run
+}
+
+task Echo (s) {
+    loop {
+        val line = await uv.stream.line(s)
+        until line == nil
+        await uv.stream.write(s, line ++ "\n")
+    }
+}
+
+pin srv = uv.pipe.listen(path)
+pin cs = tasks()
+spawn {
+    loop {
+        spawn @cs Echo(await uv.pipe.accept(srv))
+    }
+}
+
+do {
+    pin c = await uv.pipe.connect(path)
+    loop i in 3 {
+        await uv.stream.write(c, "hello " ++ i ++ "\n")
+        print((await uv.stream.line(c)))
+    }
+}
+
+;; a path with no server
+val ok, e = catch :error {
+    await uv.pipe.connect("../build/tst/no-such.sock")
+}
+print(ok, e.name)
