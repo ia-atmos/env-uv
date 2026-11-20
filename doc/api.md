@@ -130,7 +130,7 @@ program, with a message as its value: `invalid stream`,
 |-----------|--------|
 | `await uv.stream.read(s)` | the bytes that arrive, as a string, as many as there are |
 | `await uv.stream.read(s, n)` | exactly `n` bytes |
-| `await uv.stream.line(s)` | a line, with no `"\n"` |
+| `await uv.stream.line(s, [max])` | a line, with no `"\n"`, of at most `max` bytes (default 64K): a longer one is the error `:error.E2BIG` |
 | `await uv.stream.write(s, str)` | writes all bytes of the string |
 | `await uv.stream.shutdown(s)` | ends the writes, after the pending ones: the other side reads the end of the stream, and this side may still read |
 
@@ -192,7 +192,7 @@ is aborted.
 | `await uv.fs.open(path, [mode], [perm])` | a file. The mode is `"r"` (default), `"w"` (create and truncate), or `"a"` (create and append), with an optional `"+"` to read and write, as `fopen`. The permissions of a new file default to `0644`. |
 | `await uv.fs.read(f)` | the next bytes, as a string (at most 64K) |
 | `await uv.fs.read(f, n)` | exactly `n` bytes |
-| `await uv.fs.line(f)` | a line, with no `"\n"` |
+| `await uv.fs.line(f, [max])` | a line, with no `"\n"`, of at most `max` bytes (default 64K): a longer one is the error `:error.E2BIG` |
 | `await uv.fs.write(f, str)` | writes all bytes of the string, and evaluates to their number |
 | `uv.fs.seek(f, pos)` | sets the position of the next read or write |
 | `uv.fs.tell(f)` | the position of the next read or write |
