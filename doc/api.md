@@ -196,7 +196,7 @@ is aborted.
 | `await uv.fs.write(f, str)` | writes all bytes of the string, and evaluates to their number |
 | `uv.fs.seek(f, pos)` | sets the position of the next read or write |
 | `uv.fs.tell(f)` | the position of the next read or write |
-| `await uv.fs.stat(f)` | `[size=, mode=, mtime=, file=, dir=]` of an open file, or of a path |
+| `await uv.fs.stat(f)` | `[size=, mode=, mtime=, file=, dir=]` of an open file, or of a path (`mtime` in whole seconds) |
 | `await uv.fs.unlink(path)` | removes a file |
 
 A file has one position, which reads and writes advance. A file open with
@@ -212,7 +212,7 @@ other tasks execute while a file is read.
 
 | Operation | Result |
 |-----------|--------|
-| `uv.now()` | the time of the loop, in milliseconds |
+| `uv.now()` | the time of the loop, in milliseconds since it started |
 | `uv.close(h)` | closes a handle now |
 
 ## Modes
@@ -250,6 +250,14 @@ operations, and never sees these events. They are broadcasts with a
 filter, for now: an emit to the task alone (`atm_emit_to`) is faster
 with many connections, but loses an exception that the program raises
 after an operation (reported to the compiler; see doc/bench.md).
+
+## Numeric options
+
+`uv.atm` is right in every numeric configuration of the compiler
+(`ATMOS_TIME=ms`, `ATMOS_INT=32`, `ATMOS_REAL=float`, and the three
+together): the tests pass in each. It gives the time in the unit of the
+build. With integers of 32 bits, a size or a position of a file over 2GB
+is a real; with reals of 32 bits too, it is not exact.
 
 The names of C in `uv.atm` have the prefix `uva_` or `UVA_`.
 `UVA_LOOP` is the loop (`uv_loop_t*`), for native literals of the program
