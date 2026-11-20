@@ -82,11 +82,10 @@ Here there is one level. The callback of libuv awakes the one task that
 waits for it, and the program never sees the event. What Céu makes
 explicit, and Atmos hides, is that an input may be for somebody else:
 `until s==...` is a filter that every reader of every stream executes on
-every event. This binding does the same inside its operations (a
-broadcast with a filter), and 1000 connections are much slower
-than 10 for the same work (about 18 times). An emit to the one task (`atm_emit_to`) made
-it almost flat, but it loses an exception raised after an operation, so
-it waits for a fix of the runtime (see [bench.md](bench.md)).
+every event. The first version of this binding did the same (a broadcast
+with a filter), and 1000 connections were about 18 times slower than 10
+for the same work; an emit to the one task (`atm_emit_to`) makes it
+almost flat (see [bench.md](bench.md)).
 
 ### The life of a handle
 

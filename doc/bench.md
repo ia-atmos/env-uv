@@ -48,3 +48,16 @@ numbers above stay as the measure of what the fix will give back.
 | 1000 x 20 | 6042, 6621, 6372 |
 
 About 18 times from 10 to 1000, as with the first broadcast.
+
+## 2026-11-20: the emit to one task again
+
+The runtime fixed the defect (`ia-atmos/lang` `7e3b7b5`), and `uv.atm` wakes
+with `atm_emit_to` again; `tst/throw-after.atm` passes.
+
+| N x K | an emit to one task (2026-11-20) |
+|-------|---------------------------------:|
+| 10 x 2000 | 180, 201, 179 |
+| 100 x 200 | 253, 233, 227 |
+| 1000 x 20 | 465, 655, 467 |
+
+About 2.5 times from 10 to 1000, against 18 with the broadcast.

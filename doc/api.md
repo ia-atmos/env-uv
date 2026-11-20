@@ -297,12 +297,9 @@ The tests `tst/env-secondary.atm` and `tst/env-primary.atm` have the other
 environment written in the test, and `tst/pair/iup-echo.atm` runs under
 `env-iup`.
 
-The callbacks of libuv emit `:read`, `:accept`, and `:done`, for the one
-task that waits for each, inside an operation: a program awaits the
-operations, and never sees these events. They are broadcasts with a
-filter, for now: an emit to the task alone (`atm_emit_to`) is faster
-with many connections, but loses an exception that the program raises
-after an operation (reported to the compiler; see doc/bench.md).
+The callbacks of libuv emit `:read`, `:accept`, and `:done`, each to the
+one task that waits for it, inside an operation (`atm_emit_to`): a
+program awaits the operations, and never sees these events.
 
 ## Numeric options
 
