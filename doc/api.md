@@ -304,7 +304,7 @@ program awaits the operations, and never sees these events.
 ## Numeric options
 
 `uv.atm` is right in every numeric configuration of the compiler
-(`ATMOS_TIME=ms`, `ATMOS_INT=32`, `ATMOS_REAL=float`, and the three
+(`ATMOS_CLOCK=ms`, `ATMOS_INTEGER=32`, `ATMOS_FLOAT=32`, and the three
 together): the tests pass in each. It gives the time in the unit of the
 build. With integers of 32 bits, a size or a position of a file over 2GB
 is a real; with reals of 32 bits too, it is not exact.
