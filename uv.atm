@@ -26,6 +26,13 @@
 #include <signal.h>
 #include <uv.h>
 
+// The names of the numeric options before `ia-atmos/lang` renamed them
+// (2026-11-20): with an older compiler, the new names are the old ones.
+#ifndef A_CLOCK_US
+#define A_CLOCK_US A_TIME_US
+typedef AReal AFloat;
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////
 // DRIVER
 ///////////////////////////////////////////////////////////////////////////////
@@ -60,8 +67,8 @@ static void uva_time (void) {
     if (UVA_PRI && !UVA_QUIT && now>UVA_NOW) {
         uint64_t dt = now - UVA_NOW;
         UVA_NOW = now;
-        // in the unit of time of the build (A_TIME_US microseconds)
-        atm_emit(a_int((AInt)(dt * 1000 / A_TIME_US)));
+        // in the unit of time of the build (A_CLOCK_US microseconds)
+        atm_emit(a_int((AInt)(dt * 1000 / A_CLOCK_US)));
     }
 }
 
@@ -81,7 +88,7 @@ static void uva_clk_cb (uv_timer_t* h) {
 // The callbacks emit from inside `uv_run`: the runtime keeps the first
 // error of their emits, and gives it as the status of the step.
 static int uva_step (int primary, double next) {
-    double ms = (next < 0) ? -1 : next * A_TIME_US / 1000.0;
+    double ms = (next < 0) ? -1 : next * A_CLOCK_US / 1000.0;
     UVA_PRI = primary;
     uva_loop();
     uv_timer_stop(&UVA_CLK);
@@ -983,7 +990,7 @@ static AVal uva_proc_end (AStatus* st, AVal v) {
         return a_bool(0);
     }
     AVal t = a_tab();
-    uva_proc_set(t, "code",   a_numi((AReal)q->code));
+    uva_proc_set(t, "code",   a_numi((AFloat)q->code));
     uva_proc_set(t, "signal", a_int(q->signal));
     return t;
 }
@@ -1200,9 +1207,9 @@ static void uva_fs_cb (uv_fs_t* q) {
     if (r->kind==UVA_FS_STAT && res==0 && !r->gone) {
         uv_stat_t* b = &q->statbuf;
         r->val = a_tab();
-        uva_stat_set(r->val, "size",  a_numi((AReal)b->st_size));
+        uva_stat_set(r->val, "size",  a_numi((AFloat)b->st_size));
         uva_stat_set(r->val, "mode",  a_int(b->st_mode & 07777));
-        uva_stat_set(r->val, "mtime", a_numi((AReal)b->st_mtim.tv_sec));
+        uva_stat_set(r->val, "mtime", a_numi((AFloat)b->st_mtim.tv_sec));
         uva_stat_set(r->val, "file",  a_bool(S_ISREG(b->st_mode)));
         uva_stat_set(r->val, "dir",   a_bool(S_ISDIR(b->st_mode)));
     }
@@ -1647,7 +1654,7 @@ pin uv = [
 
         ;; uv.fs.tell(f): the position of the next read or write
         tell = func (f) {
-            `:value a_numi((AReal)uva_fs_tell(&st, $f))`
+            `:value a_numi((AFloat)uva_fs_tell(&st, $f))`
         },
 
         ;; await uv.fs.stat(f): [size=, mode=, mtime=, file=, dir=] of an
