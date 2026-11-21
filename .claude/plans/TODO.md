@@ -23,7 +23,7 @@ session, taken in order, never reused or renumbered; from another session,
 | #8 | A limit for the buffer of a stream (a line with no end grows forever) | work | done (`b7e5592`) |
 | #9 | UDP, processes, pipes, signals, a small HTTP server | work | done (2026-11-20, `39b2e1c`..`7fe8470`) |
 | #10 | Not tested: IPv6 (the container has none), the Mac, Windows | remark | open |
-| #11 | The numeric options of the build (`ATMOS_REAL`, `ATMOS_INT`, `ATMOS_TIME`) in `uv.atm` | work | done; `mtime` in whole seconds by the session, to be confirmed |
+| #11 | The numeric options of the build (`ATMOS_FLOAT`, `ATMOS_INTEGER`, `ATMOS_CLOCK`, formerly `ATMOS_REAL`, `ATMOS_INT`, `ATMOS_TIME`) in `uv.atm` | work | done; new C names with a bridge to the old ones; `mtime` in whole seconds by the session, to be confirmed |
 | #12 | `atm_emit_to` lost an exception raised after an awaited operation | defect, to `atmos-lang` | fixed in `lang` `7e3b7b5`; `uv.atm` back to `atm_emit_to` |
 
 ## #1 The local remote points to `fsantanna/uv`
@@ -69,6 +69,12 @@ session, taken in order, never reused or renumbered; from another session,
   positions of files are `a_numi` (a real over 2GB with `ATMOS_INT=32`).
   The 36 tests pass in the default build, under each option, and under
   the three together.
+- 2026-11-21: the C names of the rename of `lang` branch `float`
+  (`A_CLOCK_US`, `AFloat`), with a bridge in the prelude to the old ones
+  (`A_TIME_US`, `AReal`), so that `uv.atm` builds on `lang` main and on
+  `float` `e415507`; tested on both, and on `float` with `ATMOS_CLOCK=ms`
+  and with the three options. After the merge of `float`: the names of the
+  shell variables in `doc/api.md`, and the bridge may go.
 - By the session, to be confirmed: `mtime` is in whole seconds in every
   build (a real of 32 bits cannot hold the seconds since 1970 with a
   fraction).
