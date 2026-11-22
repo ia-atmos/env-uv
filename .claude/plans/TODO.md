@@ -13,9 +13,9 @@ session, taken in order, never reused or renumbered; from another session,
 
 | # | Title | Kind | State |
 |---|-------|------|-------|
-| #1 | The local remote points to `fsantanna/uv` | decision of the author | open |
-| #2 | Gap of `atmos.env`: a primary that waits delays the secondaries | remark, to `envs` and the author | open, with the author |
-| #3 | Gap of `atmos.env`: the dedicated compiler forces which env is primary | remark, to `envs` and the author | open, with the author |
+| #1 | The local remote points to `fsantanna/uv` | decision of the author | done 2026-11-22: remote is `ia-atmos/env-uv` |
+| #2 | Gap of `atmos.env`: a primary that waits delays the secondaries | remark, to `atmos-envs` and the author | sent again 2026-11-22 with a general form (an `fd` per env); with `atmos-envs` |
+| #3 | Gap of `atmos.env`: the dedicated compiler forces which env is primary | remark, to `atmos-envs` and the author | sent again 2026-11-22 (primary-only wins); with `atmos-envs` |
 | #4 | With secondaries, the primary cannot know that nothing can awake the program | remark, to `envs` | open |
 | #5 | A factory may not own the handle it gives away (`val s` in `uv.tcp.listen`) | remark, to `atmos-pin` | closed by `atmos-pin#8`: no change |
 | #6 | The trace of an error in an awaited task lacks the line of the `await` | defect, to `atmos-lang` | fixed: merged in `lang` `61979ce` (`atmos-lang#13`); `fs-00.out` gains the lines |
@@ -28,9 +28,9 @@ session, taken in order, never reused or renumbered; from another session,
 
 ## #1 The local remote points to `fsantanna/uv`
 
-- The repository was renamed to `ia-atmos/env-uv`; `git push` works through
-  the redirect. The session's permission mode refused to change the
-  remote: it needs the author's permission.
+- The repository was renamed to `ia-atmos/env-uv`; `git push` worked through
+  the redirect. Done 2026-11-22, with the author's permission: the remote
+  is `https://github.com/ia-atmos/env-uv`.
 
 ## #2, #3, #4 Gaps of `atmos.env`
 
@@ -39,10 +39,17 @@ session, taken in order, never reused or renumbered; from another session,
   were fixed in the runtime (`c12cf52`: quits after the variables; errors of
   a step), and `uv.atm` was simplified (`a4e1531`).
 - #2: the network of a pair has up to 10ms of latency (the tick of IUP).
-  #2a: a secondary gives the primary a descriptor to wake it
-  (`uv_backend_fd`).
+  The general form, sent to `atmos-envs` on 2026-11-22 at the author's
+  request: #2a, each env may give a descriptor that becomes readable when
+  it has work (a field `fd`; libuv `uv_backend_fd`), which the primary
+  adds to its wait; #2b, a thread-safe `wake()` of the primary where there
+  are no descriptors; #2c, the short bound of today as the fallback.
+  Recommended: #2a with #2c.
 - #3: `atmos-uv` includes `uv.atm` first, so a pair needs the plain
-  compiler with the primary included first.
+  compiler with the primary included first. Sent to `atmos-envs` on
+  2026-11-22: #3a, the runtime picks the primary after the main chunk (an
+  env that supports only `primary` wins); #3b, `mode.prefer`.
+  Recommended: #3a.
 - #4: "true ends the program" is only safe for a primary alone; `uv.atm`
   no longer ends the program when it has secondaries (`env-primary.atm`).
 
