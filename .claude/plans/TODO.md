@@ -13,7 +13,7 @@ session, taken in order, never reused or renumbered; from another session,
 
 | # | Title | Kind | State |
 |---|-------|------|-------|
-| #1 | The local remote points to `fsantanna/uv` | decision of the author | done 2026-11-22: remote is `ia-atmos/env-uv` |
+| #1 | The local remote points to `fsantanna/uv` | decision of the author | won't do: the new address is refused (403); the old one redirects |
 | #2 | Gap of `atmos.env`: a primary that waits delays the secondaries | remark, to `atmos-envs` and the author | sent again 2026-11-22 with a general form (an `fd` per env); with `atmos-envs` |
 | #3 | Gap of `atmos.env`: the dedicated compiler forces which env is primary | remark, to `atmos-envs` and the author | sent again 2026-11-22 (primary-only wins); with `atmos-envs` |
 | #4 | With secondaries, the primary cannot know that nothing can awake the program | remark, to `envs` | open |
@@ -29,8 +29,11 @@ session, taken in order, never reused or renumbered; from another session,
 ## #1 The local remote points to `fsantanna/uv`
 
 - The repository was renamed to `ia-atmos/env-uv`; `git push` worked through
-  the redirect. Done 2026-11-22, with the author's permission: the remote
-  is `https://github.com/ia-atmos/env-uv`.
+  the redirect. 2026-11-22: the author allowed the change, else won't do.
+  Tried: a push to `https://github.com/ia-atmos/env-uv` is refused (403),
+  since the access of this session to GitHub is scoped to `fsantanna/uv`.
+  Won't do: the remote stays the old address, which redirects; harmless
+  (only the message "This repository moved" at each push).
 
 ## #2, #3, #4 Gaps of `atmos.env`
 
