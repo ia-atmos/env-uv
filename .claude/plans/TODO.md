@@ -9,6 +9,13 @@ Items are `#N` (standing rule of the author, 2026-11-18): unique in this
 session, taken in order, never reused or renumbered; from another session,
 `env-uv#N`. The index below is the list of all of them, with their state.
 
+## State
+
+- 2026-11-23: paused by the author until the credits of next week ("Vamos
+  continuar novos passos após créditos da próxima semana"). Nothing in
+  course; the suite passes on `lang` `eca10f5`. Next steps then: #7 if
+  wanted, and #2, #3 when `atmos-envs` decides.
+
 ## Index
 
 | # | Title | Kind | State |
