@@ -138,7 +138,10 @@ session, taken in order, never reused or renumbered; from another session,
 ## Where to send findings
 
 - About `pin`: `atmos-pin` (session_011eECogSDhkVfyt7qme5DLh).
-- Anything else in the compiler: `atmos-lang`
+- Coordination, status, and questions for the author: `atmos`
+  (session_011eECohhJbc4GMpAj3yyeEo), since 2026-11-24.
+- Measurements on the ports, merges into `main` of `ia-atmos/lang`, and
+  defects of the compiler: `atmos-lang`
   (session_011eECogKVQ7ZzmWCoMST2wK).
 - Environments: `envs` (session_011eECofYWTNPACTtUjHN4p6); the pair:
   `env-iup` (session_011eECoiJLW3LfTrKdHtNFvg).
