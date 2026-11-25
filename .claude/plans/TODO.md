@@ -11,10 +11,9 @@ session, taken in order, never reused or renumbered; from another session,
 
 ## State
 
-- 2026-11-23: paused by the author until the credits of next week ("Vamos
-  continuar novos passos após créditos da próxima semana"). Nothing in
-  course; the suite passes on `lang` `eca10f5`. Next steps then: #7 if
-  wanted, and #2, #3 when `atmos-envs` decides.
+- 2026-11-25: the pause of 2026-11-23 is over (relayed by `atmos`). Done
+  since: the guide covers processes, datagrams, signals, and the pair.
+  Items waiting: #2, #3, #4 (with `atmos-envs`); later: #7, #10.
 
 ## Index
 
