@@ -151,6 +151,81 @@ loop {
 
 The program does not block while a file is read: the other tasks execute.
 
+## Programs
+
+A program runs as a process with three streams. This one sorts lines with
+`sort`, and gives up if it takes more than a second:
+
+```
+pin p = uv.proc.spawn("sort")
+await uv.stream.write(p.stdin, "b\nc\na\n")
+await uv.stream.shutdown(p.stdin)           ;; the end of its input
+watching 1s {
+    loop {
+        val line = await uv.stream.line(p.stdout)
+        until line == nil
+        print(line)
+    }
+    print("code", (await uv.proc.wait(p.proc)).code)
+}
+```
+
+If the `watching` gives up, the block ends and `p` goes with it: a
+process that still runs is terminated.
+
+## Datagrams
+
+UDP has no connection: a socket sends to an address and receives from
+any:
+
+```
+pin u = uv.udp.bind("0.0.0.0", 9000)
+loop {
+    val d = await uv.udp.recv(u)            ;; [data, ip, port]
+    await uv.udp.send(u, d@1, d@2, "echo: " ++ d@0)
+}
+```
+
+## Signals
+
+A signal is an event like the others. This server stops on `SIGINT`
+(Ctrl-C) or `SIGTERM`, and its connections close with it:
+
+```
+par :any {
+    await uv.signal.wait(2)                 ;; SIGINT
+} with {
+    await uv.signal.wait(15)                ;; SIGTERM
+} with {
+    pin srv = uv.tcp.listen("0.0.0.0", 7000)
+    await uv.tcp.serve(srv, Client)
+}
+print("bye")
+```
+
+## With a GUI
+
+The network and a GUI of [env-iup](https://github.com/ia-atmos/env-iup)
+live in one program: the GUI is included first, so that it waits for its
+events and gives the time, and libuv only delivers what is ready at each
+of its steps. A button sends a text to a server, and a label shows the
+answer ([`tst/pair/iup-echo.atm`](../tst/pair/iup-echo.atm)):
+
+```
+include "iup.atm"
+include "uv.atm"
+
+pin c = await uv.tcp.connect("localhost", 7000)
+loop on :action [h=but] {
+    await uv.stream.write(c, iup.get(txt, "VALUE") ++ "\n")
+    iup.set(lbl, "TITLE", (await uv.stream.line(c)))
+}
+```
+
+It is built with the plain compiler and the flags of both libraries, since
+`atmos-uv` would make libuv the first environment. The network then has
+the latency of a step of the GUI (10ms).
+
 ## Errors
 
 An error of libuv is a throw with its name, and the end of a stream or of
@@ -173,5 +248,7 @@ course terminate as usual, so what they pin closes.
 
 - [`samples/`](../samples): the samples of ceu-libuv, and
   [ceu.md](ceu.md), which compares them with the originals.
+- [`exs/http.atm`](../exs/http.atm): a small HTTP server, with a timeout
+  per request.
 - [`tst/`](../tst): each operation aborted in the middle
   (`tcp-abort.atm`, `fs-abort.atm`), and the errors (`tcp-error.atm`).
