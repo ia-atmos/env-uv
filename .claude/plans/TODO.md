@@ -134,6 +134,13 @@ session, taken in order, never reused or renumbered; from another session,
   gives `[code=, signal=]`; a running process whose value goes gets
   SIGTERM; signals by number, not by name.
 
+## Standing rules of the author
+
+- Reports (2026-11-26, relayed by `atmos`): for each group of changes,
+  one pair of Atmos excerpts from that work, one idiomatic and one bad
+  (awkward, verbose, a workaround), short, with file and line. No
+  screenshots here (no screen).
+
 ## Where to send findings
 
 - About `pin`: `atmos-pin` (session_011eECogSDhkVfyt7qme5DLh).
