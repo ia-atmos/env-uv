@@ -41,14 +41,16 @@ A `watching` aborts its block when the time passes, and the connection
 that the block pins closes with it:
 
 ```
-var line
-watching 5s {
+val ok, line = watching 5s {
     pin c = await uv.tcp.connect("localhost", 7000)
     await uv.stream.write(c, "hello\n")
-    set line = await uv.stream.line(c)
+    await uv.stream.line(c)
 }
-print(line || "no answer in 5s")
+print(if ok => line => "no answer in 5s")
 ```
+
+A `watching` gives a boolean before its values, as a `catch` does: `true`
+and the values of the block, or `false` when the time passed first.
 
 The same holds for any other reason to give up. This races two servers
 and keeps the first answer, aborting the other connection:
