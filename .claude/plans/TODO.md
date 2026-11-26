@@ -161,6 +161,12 @@ session, taken in order, never reused or renumbered; from another session,
   number of this sequence (#N, in the index), and each bad one says why
   it is bad and what would make it better.
 
+- Idioms (2026-11-26, relayed by `atmos`, `atmos#29`): read `ia-atmos/lang`
+  `.claude/plans/IDIOMS.md` before writing Atmos. A general rule that
+  comes out of a correction or an approval of the author goes to `atmos`
+  (source `env-uv#N`, a before and an after). Checked on 2026-11-26: only
+  three `await(x)` in tests, fixed.
+
 ## Where to send findings
 
 - About `pin`: `atmos-pin` (session_011eECogSDhkVfyt7qme5DLh).
