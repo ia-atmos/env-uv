@@ -10,5 +10,5 @@ spawn {
     await 100ms
     print("100ms")
 }
-await(false)
+await false
 print("never")

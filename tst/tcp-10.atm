@@ -39,6 +39,6 @@ do {
     pin client = await uv.tcp.accept(srv)
     await Client(client)
 }                       ;; the connection closes here
-await(tst)
+await tst
 
 print("DONE!")
