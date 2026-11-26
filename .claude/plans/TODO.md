@@ -31,6 +31,8 @@ session, taken in order, never reused or renumbered; from another session,
 | #10 | Not tested: IPv6 (the container has none), the Mac, Windows | remark | open |
 | #11 | The numeric options of the build (`ATMOS_FLOAT`, `ATMOS_INTEGER`, `ATMOS_CLOCK`, formerly `ATMOS_REAL`, `ATMOS_INT`, `ATMOS_TIME`) in `uv.atm` | work | done; new C names with a bridge to the old ones; `mtime` in whole seconds by the session, to be confirmed |
 | #12 | `atm_emit_to` lost an exception raised after an awaited operation | defect, to `atmos-lang` | fixed in `lang` `7e3b7b5`; `uv.atm` back to `atm_emit_to` |
+| #13 | Excerpt, idiomatic: a process ends with the task that holds it (`tst/proc-01.atm:49`) | excerpt of #9 | shown 2026-11-26 |
+| #14 | Excerpt, bad: the timeout of a request needs a `var` and a `set` (`exs/http.atm:57`) | excerpt of #9 | shown 2026-11-26; fix in the language |
 
 ## #1 The local remote points to `fsantanna/uv`
 
@@ -134,12 +136,27 @@ session, taken in order, never reused or renumbered; from another session,
   gives `[code=, signal=]`; a running process whose value goes gets
   SIGTERM; signals by number, not by name.
 
+## #13, #14 Excerpts of #9
+
+- #13, idiomatic (`tst/proc-01.atm:49`): a process lives as long as the
+  task that holds it; `abort t` closes the handle and sends SIGTERM, with
+  no cleanup code.
+- #14, bad (`exs/http.atm:57`): `var res = nil ; watching 5s { set res =
+  await Request(s) }`. Why: a `watching` that times out evaluates to the
+  time that passed (a number), not `nil`, so the natural
+  `val res = watching 5s { await Request(s) }` would give a number to the
+  write. What would fix it: in the language, a `watching` ended by its
+  condition evaluates to `nil` (or to a value given with it); then the
+  line is one `val`, and no mutable variable.
+
 ## Standing rules of the author
 
 - Reports (2026-11-26, relayed by `atmos`): for each group of changes,
   one pair of Atmos excerpts from that work, one idiomatic and one bad
   (awkward, verbose, a workaround), short, with file and line. No
-  screenshots here (no screen).
+  screenshots here (no screen). Added the same day: each excerpt has a
+  number of this sequence (#N, in the index), and each bad one says why
+  it is bad and what would make it better.
 
 ## Where to send findings
 
