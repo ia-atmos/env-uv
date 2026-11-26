@@ -53,12 +53,11 @@ task Request (s) {
 }
 
 task Client (pin s) {
-    val ok = catch :error {
-        var res = nil
-        watching 5s {
-            set res = await Request(s)
+    catch :error {
+        val ok, res = watching 5s {
+            await Request(s)
         }
-        if res != nil {
+        if ok && (res != nil) {
             await uv.stream.write(s, res)
         }
     }
