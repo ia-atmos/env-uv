@@ -32,7 +32,7 @@ session, taken in order, never reused or renumbered; from another session,
 | #11 | The numeric options of the build (`ATMOS_FLOAT`, `ATMOS_INTEGER`, `ATMOS_CLOCK`, formerly `ATMOS_REAL`, `ATMOS_INT`, `ATMOS_TIME`) in `uv.atm` | work | done; new C names with a bridge to the old ones; `mtime` in whole seconds by the session, to be confirmed |
 | #12 | `atm_emit_to` lost an exception raised after an awaited operation | defect, to `atmos-lang` | fixed in `lang` `7e3b7b5`; `uv.atm` back to `atm_emit_to` |
 | #13 | Excerpt, idiomatic: a process ends with the task that holds it (`tst/proc-01.atm:49`) | excerpt of #9 | shown 2026-11-26 |
-| #14 | Excerpt, bad: the timeout of a request needs a `var` and a `set` (`exs/http.atm:57`) | excerpt of #9 | shown 2026-11-26; fix in the language |
+| #14 | Excerpt, bad: the timeout of a request needs a `var` and a `set` (`exs/http.atm:57`) | excerpt of #9 | fixed in the language (`lang` `80ed120`, `atmos-lang#132`): `val ok, res = watching ...`; applied here |
 
 ## #1 The local remote points to `fsantanna/uv`
 
@@ -148,6 +148,9 @@ session, taken in order, never reused or renumbered; from another session,
   write. What would fix it: in the language, a `watching` ended by its
   condition evaluates to `nil` (or to a value given with it); then the
   line is one `val`, and no mutable variable.
+- #14 decided by the author on 2026-11-26 (`atmos-lang#132`, `#133`): a
+  `watching` gives a boolean before its values, as a `catch`. Applied in
+  `exs/http.atm`, `tst/http-01.atm`, and the guide.
 
 ## Standing rules of the author
 
